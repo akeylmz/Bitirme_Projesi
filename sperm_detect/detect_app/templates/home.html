@@ -1,0 +1,23 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ana Sayfa</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/home.css' %}">
+</head>
+<body>
+
+    <h1>Sperm Detector</h1>
+
+    <div class="upload-container">
+        <input type="file" id="videoInput" accept="video/*" />
+        <span id="uploadText">Video Yükle</span>
+
+    </div>
+
+
+    <script src="{% static 'js/main.js' %}"></script>
+
+</body>
+</html>
