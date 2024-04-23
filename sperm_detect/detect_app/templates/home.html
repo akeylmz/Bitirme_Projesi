@@ -10,11 +10,14 @@
 
     <h1>Sperm Detector</h1>
 
-    <div class="upload-container">
-        <input type="file" id="videoInput" accept="video/*" />
-        <span id="uploadText">Video Yükle</span>
-
-    </div>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="upload-container">
+            <input type="file" name="video" id="videoInput" accept="video/*" />
+            <label for="videoInput" id="uploadText">Video Yükle</label>
+        </div>
+        <input type="submit" value="Analiz Et">
+    </form>
 
 
     <script src="{% static 'js/main.js' %}"></script>
