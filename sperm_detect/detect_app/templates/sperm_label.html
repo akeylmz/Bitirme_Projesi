@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery</title>
+    <style>
+        .gallery-container {
+            overflow-x: auto; /* Yatay kaydırma çubuğunu etkinleştir */
+            white-space: nowrap; /* Elemanların bir satırda kalmasını sağlar */
+        }
+
+        .frames-wrapper {
+            display: inline-block; /* Frames container'ı blok olmaktan çıkarır, böylece bir satırda kalabilir */
+        }
+
+        .frame {
+            display: inline-block; /* Her çerçeveyi yatay olarak hizalar */
+            margin-right: 10px; /* Opsiyonel olarak çerçeveler arasında boşluk ekler */
+            border-style: solid;
+            border-width: 1px;
+        }
+
+        .frame img {
+            max-width: 100px; /* İsteğe bağlı olarak çerçeve genişliğini sınırlar */
+        }
+
+        #large-frame img {
+            width: 80%;
+            height: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="gallery-container">
+        <div class="frames-wrapper">
+            {% for frame in frames %}
+                <div class="frame" id="{{frame.id}}">
+                    <img src="{{ frame.frame.url }}" onclick="showLargeFrame('{{ frame.frame.url }}')" />
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div id="large-frame">
+        <!-- Large frame will be displayed here -->
+    </div>
+
+    <script>
+        var largeFrame = document.getElementById('large-frame');
+
+        function showLargeFrame(url) {
+            largeFrame.innerHTML = `<img src="${url}" />`;
+        }
+    </script>
+</body>
+</html>

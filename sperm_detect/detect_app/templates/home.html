@@ -7,20 +7,24 @@
     <link rel="stylesheet" type="text/css" href="{% static 'css/home.css' %}">
 </head>
 <body>
-
+    <h3>Welcome {{user.username|capfirst}}</h3>
     <h1>Sperm Detector</h1>
+    
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="upload-container">
-            <input type="file" name="video" id="videoInput" accept="video/*" />
-            <label for="videoInput" id="uploadText">Video Yükle</label>
+        <div class="form-row field-video_file">
+            <div>
+                <div class="flex-container">
+                    <label class="required" for="id_video_file">Video file:</label>
+                       
+                        <input type="file" name="video_file" id="id_video_file"></p>
+                </div>
+            </div>
         </div>
-        <input type="submit" value="Analiz Et">
+        <button type="submit">Upload Video</button>
     </form>
 
-
-    <script src="{% static 'js/main.js' %}"></script>
-
+    
 </body>
 </html>

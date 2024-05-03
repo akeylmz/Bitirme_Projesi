@@ -1,81 +1,105 @@
-from django.http import HttpResponseRedirect
-from django.shortcuts import render
+from django.http import HttpResponseRedirect, JsonResponse,HttpResponse
+from django.shortcuts import render, redirect
 import cv2
 import numpy as np
 import os
-
 from sperm_detect import settings
+from ultralytics import YOLO
+from django.contrib.auth import authenticate, login, logout
+from .forms import UserVideoForm
+from tempfile import NamedTemporaryFile
+from.models import UserVideo, VideoFrames
+from django.core.files.base import ContentFile
 
-def detect_sperm(request):
+from django.core.files.base import File
+
+def split_video_frames(user_video):
+    video_path = user_video.video_file.path
+    video = cv2.VideoCapture(video_path)
+    count = 1
+
+    while True:
+        success, frame = video.read()
+
+        if not success:
+            break
+
+        # Dosya yolunu düzeltme
+        frame_path = os.path.join(user_video.user.username, 'frames', f'{count}.jpg')
+        
+        # Çerçeve dosyasını oluşturma
+        _, temp_frame = cv2.imencode('.jpg', frame)
+        frame_content = ContentFile(temp_frame.tobytes())
+
+        # VideoFrames modeline kaydetme
+        new_frame = VideoFrames(
+            video=user_video,
+        )
+        
+        # Dosya adı ve içeriğini ayarlama
+        new_frame.frame.save(frame_path, File(frame_content))
+
+        new_frame.save()
+
+        count += 1
+
+    video.release()
+    return count
+
+
+def home(request):
     if request.method == 'POST':
-        # YOLO modelini yükle
-        net = cv2.dnn.readNet(os.path.join('detect_app', 'best.pt'))
-        layer_names = net.getLayerNames()
-        output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+        form = UserVideoForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.instance.user = request.user
+            user_video=form.save()
+            # Video dosyasını işleyerek frameleri ayır
+            split_video_frames(user_video)
 
-        # Etiketleri yükle
-        with open(os.path.join('detect_app', 'coco.names'), 'r') as f:
-            classes = [line.strip() for line in f.readlines()]
+            return redirect('home')
+    else:
+        form = UserVideoForm()
+    return render(request, 'home.html', {'form': form})
 
-        # Videodan kareleri al
-        video_file = request.FILES['video']
-        cap = cv2.VideoCapture(video_file)
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
+def labeling_sperm(request):
+     # Kullanıcı adı
+    username = request.user.username
+    user= request.user
+    user_video=UserVideo.objects.filter(user=user).first()
+    video_frames=VideoFrames.objects.filter(video=user_video)
+    return render(request, 'sperm_label.html', {"frames":video_frames})
 
-            # Kareyi YOLO modeli ile işle
-            blob = cv2.dnn.blobFromImage(frame, 0.00392, (416, 416), (0, 0, 0), True, crop=False)
-            net.setInput(blob)
-            outs = net.forward(output_layers)
-
-            # Çıktıları işle
-            class_ids = []
-            confidences = []
-            boxes = []
-            for out in outs:
-                for detection in out:
-                    scores = detection[5:]
-                    class_id = np.argmax(scores)
-                    confidence = scores[class_id]
-                    if confidence > 0.5:
-                        # Nesne konumunu bul
-                        center_x = int(detection[0] * frame.shape[1])
-                        center_y = int(detection[1] * frame.shape[0])
-                        w = int(detection[2] * frame.shape[1])
-                        h = int(detection[3] * frame.shape[0])
-                        x = int(center_x - w / 2)
-                        y = int(center_y - h / 2)
-                        boxes.append([x, y, w, h])
-                        confidences.append(float(confidence))
-                        class_ids.append(class_id)
-
-            # Non-max suppression uygula
-            indexes = cv2.dnn.NMSBoxes(boxes, confidences, 0.5, 0.4)
-
-            for i in range(len(boxes)):
-                if i in indexes:
-                    x, y, w, h = boxes[i]
-                    label = str(classes[class_ids[i]])
-                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.putText(frame, label, (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-
-            # İşlenen kareleri göster
-            cv2.imshow('Sperm Detection', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        cap.release()
-        cv2.destroyAllWindows()
-
-    return render(request, 'home.html')
 
 def upload_video(request):
+    if request.method == 'POST':
+        if request.FILES.get('video'):
+            print("video yüklendi")
+            video = request.FILES['video']
+            # YOLO modelini yükle
+            model = YOLO('best.pt')
+            sonuc = model.predict(source=video, show=True) 
+            return JsonResponse({'sonuc': sonuc})
+
+
+
+# Create your views here.
+def login_request(request):
     if request.method == "POST":
-        video_file = request.FILES["video"]
-        file_path = os.path.join(settings.MEDIA_ROOT, video_file.name)
-        with open(file_path, "wb") as f:
-            for chunk in video_file.chunks():
-                f.write(chunk)
-        return HttpResponseRedirect("/")
+        username = request.POST["username"]
+        password = request.POST["password"]
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            return redirect("home")
+        else:
+            return render(request, "account/login.html", {
+                "error":"Kullanıcı adı veya parola yanlış"
+            })
+    else:
+        return render(request, "account/login.html")
+
+def logout_request(request):
+    logout(request)
+    return redirect("login")
