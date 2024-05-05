@@ -1,0 +1,117 @@
+{% load custom_filters %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labeling</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/labeling.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+
+</head>
+<body>
+   
+    <div class="frame-container">
+        <!-- Canvas elementini buraya ekleyin -->
+        <canvas id="myCanvas" class="frame-img"></canvas>
+        <div class="labels-container">
+            <h2>Labels</h2>
+            <ul>
+                {% for label in labels %}
+                    <li class="label" data-id="{{ label.id }}" data-x="{{ label.x }}" data-y="{{ label.y }}" data-w="{{ label.w }}" data-h="{{ label.h }}">Label-{{ label.id }}</li>
+                    <div class="label-details" id="label-details-{{ label.id }}">
+                        <p>X: <span class="label-x">{{ label.x }}</span></p>
+                        <p>Y: <span class="label-y">{{ label.y }}</span></p>
+                        <p>Width: <span class="label-w">{{ label.w }}</span></p>
+                        <p>Height: <span class="label-h">{{ label.h }}</span></p>
+                    </div>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% if frame_next_id != 0 %}
+        <div class="nextBtn">
+            <a href="{% url 'labeling' frame_id=frame_next_id %}">
+                <button style="color: rgb(47, 65, 79);" class="back-button">
+                    <i class="fa-solid fa-angles-right"></i>
+                </button>
+            </a>
+        </div>
+    {% else %}
+        <div class="nextBtn">
+            <a href="{% url 'home' %}">
+                <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
+                <button style="color: rgb(47, 65, 79);" class="back-button">
+                    <i class="fa-solid fa-angles-right"></i>
+                </button>
+            </a>
+        </div>
+    {% endif %}
+
+    <script src="{% static 'js/labeling.js' %}"></script>
+
+    <script>
+        // Resmin yüklendiğinde çalışacak olan fonksiyon
+        function drawLabels() {
+            // Canvas elementini seç
+            var canvas = document.getElementById('myCanvas');
+            var context = canvas.getContext('2d');
+
+            // Resmi çiz
+            var image = new Image();
+            image.onload = function() {
+                canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
+                canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
+                context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
+
+                // Kare çerçeveleri çiz
+                context.lineWidth = 2;
+                context.strokeStyle = 'red';
+                {% for label in labels %}
+                    context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
+                {% endfor %}
+            };
+            image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
+        }
+
+        // Sayfa yüklendiğinde resmi ve kare çerçeveleri çiz
+        window.onload = drawLabels;
+
+        var canvas = document.getElementById('myCanvas');
+        canvas.addEventListener('click', function(event) {
+            var x = event.offsetX;
+            var y = event.offsetY;
+            var labels = document.querySelectorAll('.label');
+            labels.forEach(function(label) {
+                var labelX = parseInt(label.getAttribute('data-x'));
+                var labelY = parseInt(label.getAttribute('data-y'));
+                var labelW = parseInt(label.getAttribute('data-w'));
+                var labelH = parseInt(label.getAttribute('data-h'));
+                if (x >= labelX && x <= (labelX + labelW) && y >= labelY && y <= (labelY + labelH)) {
+                    var labelId = label.getAttribute('data-id');
+                    var labelDetails = document.getElementById('label-details-' + labelId);
+                    if (labelDetails) {
+                        var activeDetails = document.querySelector('.label-details.active');
+                        if (activeDetails) {
+                            activeDetails.classList.remove('active');
+                        }
+                        labelDetails.classList.add('active');
+                    }
+                }
+            });
+        });
+    </script>
+    <script>
+        const labels = document.querySelectorAll('.label');
+
+        labels.forEach(label => {
+            label.addEventListener('click', () => {
+                const id = label.getAttribute('data-id');
+                const details = document.getElementById(`label-details-${id}`);
+                details.classList.toggle('active');
+            });
+        });
+    </script>
+</body>
+</html>

@@ -15,9 +15,8 @@ class VideoFrames(models.Model):
 
 class FrameLabels(models.Model):
     labels_frame = models.ForeignKey(VideoFrames, on_delete=models.CASCADE, related_name='frame_labels')
-    labels_txt = models.FileField()
-    x = models.DecimalField(max_digits=10, decimal_places=7)
-    y = models.DecimalField(max_digits=10, decimal_places=7)
-    w = models.DecimalField(max_digits=10, decimal_places=7)
-    h = models.DecimalField(max_digits=10, decimal_places=7)
+    x = models.FloatField()
+    y = models.FloatField()
+    w = models.FloatField()
+    h = models.FloatField()
 

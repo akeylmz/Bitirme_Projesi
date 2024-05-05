@@ -1,5 +1,5 @@
 from django.http import HttpResponseRedirect, JsonResponse,HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 import cv2
 import numpy as np
 import os
@@ -8,7 +8,7 @@ from ultralytics import YOLO
 from django.contrib.auth import authenticate, login, logout
 from .forms import UserVideoForm
 from tempfile import NamedTemporaryFile
-from.models import UserVideo, VideoFrames
+from.models import UserVideo, VideoFrames, FrameLabels
 from django.core.files.base import ContentFile
 
 from django.core.files.base import File
@@ -46,7 +46,6 @@ def split_video_frames(user_video):
     video.release()
     return count
 
-
 def home(request):
     if request.method == 'POST':
         form = UserVideoForm(request.POST, request.FILES)
@@ -55,31 +54,37 @@ def home(request):
             user_video=form.save()
             # Video dosyasını işleyerek frameleri ayır
             split_video_frames(user_video)
-
-            return redirect('home')
+            frame=VideoFrames.objects.filter(video=user_video).first()
+            frame_id=frame.id
+            return redirect('labeling', frame_id=frame_id)
     else:
         form = UserVideoForm()
     return render(request, 'home.html', {'form': form})
 
-def labeling_sperm(request):
+def labeling(request, frame_id):
+    frame= VideoFrames.objects.filter(id=frame_id).first()
+    frame_next_id=int(frame_id)+1
+    frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
+    if frame_next is None:
+        frame_next_id = 0
+    labels= FrameLabels.objects.filter(labels_frame=frame_id)
+    return render(request, 'labeling.html', {'frame': frame,'frame_next_id': frame_next_id, 'labels':labels})
+ 
+
+def galery(request):
      # Kullanıcı adı
     username = request.user.username
     user= request.user
     user_video=UserVideo.objects.filter(user=user).first()
     video_frames=VideoFrames.objects.filter(video=user_video)
-    return render(request, 'sperm_label.html', {"frames":video_frames})
 
+    frames_with_labels = []
+    for frame in video_frames:
+        labels = FrameLabels.objects.filter(labels_frame=frame)
+        frames_with_labels.append({"frame": frame, "labels": labels})
+    labels =FrameLabels.objects.all()
 
-def upload_video(request):
-    if request.method == 'POST':
-        if request.FILES.get('video'):
-            print("video yüklendi")
-            video = request.FILES['video']
-            # YOLO modelini yükle
-            model = YOLO('best.pt')
-            sonuc = model.predict(source=video, show=True) 
-            return JsonResponse({'sonuc': sonuc})
-
+    return render(request, 'sperm_label.html', {"frames":video_frames, "labels":labels})
 
 
 # Create your views here.
