@@ -17,13 +17,14 @@ def labeling(sender, instance, created, **kwargs):
         # Load a model
         model = YOLO(BEST_PT_PATH)  # pretrained YOLOv8n model
         frame_path = instance.frame.path
-
+        print(frame_path)
         # Open the image file
         with open(frame_path, 'rb') as f:
             frame_data = f.read()
         
         # Convert to PIL image
         frame_image = Image.open(io.BytesIO(frame_data))
+        print(frame_image)
 
         # Run batched inference on a list of images
         results=model.predict(frame_image)
@@ -31,6 +32,7 @@ def labeling(sender, instance, created, **kwargs):
         for r in results:
             if r.boxes.xywh.tolist() is not None:
                 for c in r.boxes.xywh.tolist(): # To get the coordinates.
+                    print(instance.id)
                     print(c)
                     x, y, w, h = c[0], c[1], c[2], c[3] # x, y are the center coordinates.
                     label_f= FrameLabels.objects.create(

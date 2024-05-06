@@ -59,17 +59,27 @@ def home(request):
             return redirect('labeling', frame_id=frame_id)
     else:
         form = UserVideoForm()
-    return render(request, 'home.html', {'form': form})
+    user_video=UserVideo.objects.filter(user=request.user).last()
+    frame=VideoFrames.objects.filter(video=user_video).first()
+    return render(request, 'home.html', {'form': form, 'frame':frame})
 
 def labeling(request, frame_id):
     frame= VideoFrames.objects.filter(id=frame_id).first()
+    user_video = get_object_or_404(UserVideo,id=frame.video.id)
+    frame_last = user_video.video_frames.last()
+    frame_first = user_video.video_frames.first()
+
     frame_next_id=int(frame_id)+1
     frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
     if frame_next is None:
         frame_next_id = 0
+
+    frame_previous_id=int(frame_id)-1
+
+    if frame_previous_id <frame_first.id:
+        frame_previous_id = 0
     labels= FrameLabels.objects.filter(labels_frame=frame_id)
-    return render(request, 'labeling.html', {'frame': frame,'frame_next_id': frame_next_id, 'labels':labels})
- 
+    return render(request, 'labeling.html', {'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
 
 def galery(request):
      # Kullanıcı adı
@@ -85,6 +95,27 @@ def galery(request):
     labels =FrameLabels.objects.all()
 
     return render(request, 'sperm_label.html', {"frames":video_frames, "labels":labels})
+
+def delete_label(request, label_id):
+    label=get_object_or_404(FrameLabels, id=label_id)
+    label.delete()
+    return redirect(request.META.get('HTTP_REFERER'))
+
+def add_label(request, frame_id):
+    if request.method == 'POST':
+        x=request.POST.get('x')
+        y=request.POST.get('y')
+        w=request.POST.get('w')
+        h=request.POST.get('h')
+        frame=get_object_or_404(VideoFrames, id=frame_id)
+        label=FrameLabels.objects.create(
+            labels_frame=frame,
+            x=x,
+            y=y,
+            w=w,
+            h=h
+        )
+    return redirect(request.META.get('HTTP_REFERER'))
 
 
 # Create your views here.

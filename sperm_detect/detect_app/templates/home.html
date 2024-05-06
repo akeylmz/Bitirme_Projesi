@@ -24,7 +24,14 @@
         </div>
         <button type="submit">Upload Video</button>
     </form>
-
-
+    {% if frame %}
+    <div>
+        <a href="{% url 'labeling' frame_id=frame.id %}">
+            <button value="Go Labeling">
+                Go Labeling
+            </button>
+        </a>
+    </div>
+    {% endif %}
 </body>
 </html>

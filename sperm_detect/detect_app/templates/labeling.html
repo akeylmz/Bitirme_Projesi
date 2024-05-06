@@ -11,9 +11,19 @@
 
 </head>
 <body>
-   
+    <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
+        {% csrf_token %}
+
+        <input name="x" step="0.000000000000001" type="number">
+        <input name="y" step="0.000000000000001" type="number">
+        <input name="w" step="0.000000000000001" type="number">
+        <input name="h" step="0.000000000000001" type="number">
+        <button type="submit">Add Label</button>
+
+    </form>
     <div class="frame-container">
         <!-- Canvas elementini buraya ekleyin -->
+        <p>{{frame.frame.url | basename | remove_extension }}/{{frame_last.frame.url | basename | remove_extension }}</p>
         <canvas id="myCanvas" class="frame-img"></canvas>
         <div class="labels-container">
             <h2>Labels</h2>
@@ -25,32 +35,52 @@
                         <p>Y: <span class="label-y">{{ label.y }}</span></p>
                         <p>Width: <span class="label-w">{{ label.w }}</span></p>
                         <p>Height: <span class="label-h">{{ label.h }}</span></p>
+                        <a href="{% url 'delete_label' label_id=label.id %}">
+                            <button >DELETE</button>
+                        </a>
                     </div>
                 {% endfor %}
             </ul>
         </div>
     </div>
-    {% if frame_next_id != 0 %}
-        <div class="nextBtn">
-            <a href="{% url 'labeling' frame_id=frame_next_id %}">
-                <button style="color: rgb(47, 65, 79);" class="back-button">
-                    <i class="fa-solid fa-angles-right"></i>
-                </button>
-            </a>
-        </div>
-    {% else %}
-        <div class="nextBtn">
+    <div class="right">
+        {% if frame_next_id != 0 %}
+            <div class="nextBtn">
+                <a href="{% url 'labeling' frame_id=frame_next_id %}">
+                    <button style="color: rgb(47, 65, 79);" class="back-button">
+                        <i class="fa-solid fa-angles-right"></i>
+                    </button>
+                </a>
+            </div>
+        {% else %}
+            <div class="nextBtn">
+                <a href="{% url 'home' %}">
+                    <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
+                    <button style="color: rgb(47, 65, 79);" class="back-button">
+                        <i class="fa-solid fa-angles-right"></i>
+                    </button>
+                </a>
+            </div>
+        {% endif %}
+
+        {% if frame_previous_id != 0 %}
+            <div class="backBtn">
+                <a href="{% url 'labeling' frame_id=frame_previous_id %}">
+                    <button style="color: rgb(47, 65, 79);" class="back-button">
+                        <i class="fa-solid fa-angles-left"></i>
+                    </button>
+                </a>
+            </div>
+        {% endif %}
+        <div class="homeBtn">
             <a href="{% url 'home' %}">
-                <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
                 <button style="color: rgb(47, 65, 79);" class="back-button">
-                    <i class="fa-solid fa-angles-right"></i>
+                    <i class="fa-solid fa-house"></i>
                 </button>
             </a>
         </div>
-    {% endif %}
-
-    <script src="{% static 'js/labeling.js' %}"></script>
-
+        
+    </div>
     <script>
         // Resmin yüklendiğinde çalışacak olan fonksiyon
         function drawLabels() {
