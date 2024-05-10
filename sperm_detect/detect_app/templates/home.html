@@ -11,14 +11,14 @@
     <h1>Sperm Detector</h1>
     
 
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" class="demo-form1">
         {% csrf_token %}
         <div class="form-row field-video_file">
             <div>
                 <div class="flex-container">
-                    <label class="required" for="id_video_file">Video file:</label>
+                    <label class="f-title" for="id_video_file">Video file:</label>
                        
-                        <input type="file" name="video_file" id="id_video_file"></p>
+                        <input class="input" type="file" name="video_file" id="id_video_file"></p>
                 </div>
             </div>
         </div>
@@ -30,6 +30,9 @@
             <button value="Go Labeling">
                 Go Labeling
             </button>
+        </a>
+        <a href="{% url 'user_video_frames_labels' user_video_id=user_video.id %}" download>
+            <button>Download JSON</button>
         </a>
     </div>
     {% endif %}

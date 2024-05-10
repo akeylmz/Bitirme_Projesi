@@ -61,7 +61,7 @@ def home(request):
         form = UserVideoForm()
     user_video=UserVideo.objects.filter(user=request.user).last()
     frame=VideoFrames.objects.filter(video=user_video).first()
-    return render(request, 'home.html', {'form': form, 'frame':frame})
+    return render(request, 'home.html', {'form': form, 'frame':frame, 'user_video':user_video})
 
 def labeling(request, frame_id):
     frame= VideoFrames.objects.filter(id=frame_id).first()
@@ -81,20 +81,61 @@ def labeling(request, frame_id):
     labels= FrameLabels.objects.filter(labels_frame=frame_id)
     return render(request, 'labeling.html', {'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
 
-def galery(request):
-     # Kullanıcı adı
-    username = request.user.username
-    user= request.user
-    user_video=UserVideo.objects.filter(user=user).first()
-    video_frames=VideoFrames.objects.filter(video=user_video)
+def get_json(request, user_video_id):
+    user_video=get_object_or_404(UserVideo, id=user_video_id)
+    
+    
 
-    frames_with_labels = []
-    for frame in video_frames:
-        labels = FrameLabels.objects.filter(labels_frame=frame)
-        frames_with_labels.append({"frame": frame, "labels": labels})
-    labels =FrameLabels.objects.all()
+    return render(request, 'get_json.html')
 
-    return render(request, 'sperm_label.html', {"frames":video_frames, "labels":labels})
+from django.http import HttpResponse
+import json
+
+def user_video_frames_labels(request, user_video_id):
+    try:
+        user_video = UserVideo.objects.get(pk=user_video_id)
+        # Frames'i al
+        frames = user_video.video_frames.all()
+        # User video verisi
+        video_name=os.path.basename(user_video.video_file.url)
+        user_video_data = {
+            'video_id': user_video.id,
+            'videoName': video_name,
+            'frames_count':user_video.video_frames.count(),
+            'frames': []
+        }
+        # Frames için etiketleri al
+        for frame in frames:
+            frame_path = frame.frame.path
+            frame_name = os.path.splitext(os.path.basename(frame_path))[0]
+            frame_data = {
+                'frame_id': frame.id,
+                'frame_count' : frame_name, 
+                'labels_count': frame.frame_labels.count(),  # Etiket sayısını al
+                'labels': []
+            }
+            labels = frame.frame_labels.all()
+            for label in labels:
+                label_data = {
+                    'class': 'sperm',
+                    'label_id': label.id,
+                    'x': label.x,
+                    'y': label.y,
+                    'width': label.w,
+                    'height': label.h
+                }
+                frame_data['labels'].append(label_data)
+            user_video_data['frames'].append(frame_data)
+        video_path = user_video.video_file.path
+        json_name=os.path.splitext(os.path.basename(video_path))[0]
+        # JSON dönüştürme ve HttpResponse oluşturma
+        
+        json_data = json.dumps(user_video_data)
+        response = HttpResponse(json_data, content_type='application/json')
+        response['Content-Disposition'] = f'attachment; filename="{json_name}.json"'
+        return response
+    except UserVideo.DoesNotExist:
+        return JsonResponse({'error': 'User video does not exist'}, status=404)
 
 def delete_label(request, label_id):
     label=get_object_or_404(FrameLabels, id=label_id)

@@ -24,14 +24,13 @@ def labeling(sender, instance, created, **kwargs):
         
         # Convert to PIL image
         frame_image = Image.open(io.BytesIO(frame_data))
-        print(frame_image)
 
         # Run batched inference on a list of images
-        results=model.predict(frame_image)
+        results=model.predict(frame_path)
         
         for r in results:
             if r.boxes.xywh.tolist() is not None:
-                for c in r.boxes.xywh.tolist(): # To get the coordinates.
+                for c in r.boxes.xywhn.tolist(): # To get the coordinates.
                     print(instance.id)
                     print(c)
                     x, y, w, h = c[0], c[1], c[2], c[3] # x, y are the center coordinates.

@@ -96,10 +96,22 @@
                 context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
 
                 // Kare çerçeveleri çiz
-                context.lineWidth = 2;
+                context.lineWidth = 1;
                 context.strokeStyle = 'red';
                 {% for label in labels %}
-                    context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
+                    x_c={{ label.x }} - {{ label.w }}/2
+                    x=x_c*image.width
+                    y_c={{ label.y }} - {{ label.h }}/2
+                    y=y_c*image.height
+                    w={{ label.w }}*image.width
+                    h={{ label.h }}*image.height
+                    console.log('x:'+x)
+                    console.log('w:'+w)
+                    //context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
+                    //context.strokeRect({{ label.x }}*image.width*0.99, {{ label.y }}*image.height*0.97, {{ label.w }}*image.width, {{ label.h }}*image.height);
+                    context.strokeRect(x, y, w, h);                    
+                    //context.strokeRect({{ label.x }}*640, {{ label.y }}*640, {{ label.w }}*640, {{ label.h }}*640);
+
                 {% endfor %}
             };
             image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
