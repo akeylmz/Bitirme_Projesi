@@ -11,37 +11,40 @@
 
 </head>
 <body>
-    <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
-        {% csrf_token %}
-
-        <input name="x" step="0.000000000000001" type="number">
-        <input name="y" step="0.000000000000001" type="number">
-        <input name="w" step="0.000000000000001" type="number">
-        <input name="h" step="0.000000000000001" type="number">
-        <button type="submit">Add Label</button>
-
-    </form>
+    <div class="labels-container">
+        <h2>Labels</h2>
+        <ul>
+            {% for label in labels %}
+            <div class="label-container">
+                <li class="label" data-id="{{ label.id }}" >Label-{{ label.id }}</li>
+                <div class="label-details" id="label-details-{{ label.id }}">
+                    <p>X: <span class="label-x">{{ label.x }}</span></p>
+                    <p>Y: <span class="label-y">{{ label.y }}</span></p>
+                    <p>Width: <span class="label-w">{{ label.w }}</span></p>
+                    <p>Height: <span class="label-h">{{ label.h }}</span></p>
+                    <a href="{% url 'delete_label' label_id=label.id %}">
+                        <button >DELETE</button>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </ul>
+    </div>
+    
     <div class="frame-container">
         <!-- Canvas elementini buraya ekleyin -->
         <p>{{frame.frame.url | basename | remove_extension }}/{{frame_last.frame.url | basename | remove_extension }}</p>
         <canvas id="myCanvas" class="frame-img"></canvas>
-        <div class="labels-container">
-            <h2>Labels</h2>
-            <ul>
-                {% for label in labels %}
-                    <li class="label" data-id="{{ label.id }}" data-x="{{ label.x }}" data-y="{{ label.y }}" data-w="{{ label.w }}" data-h="{{ label.h }}">Label-{{ label.id }}</li>
-                    <div class="label-details" id="label-details-{{ label.id }}">
-                        <p>X: <span class="label-x">{{ label.x }}</span></p>
-                        <p>Y: <span class="label-y">{{ label.y }}</span></p>
-                        <p>Width: <span class="label-w">{{ label.w }}</span></p>
-                        <p>Height: <span class="label-h">{{ label.h }}</span></p>
-                        <a href="{% url 'delete_label' label_id=label.id %}">
-                            <button >DELETE</button>
-                        </a>
-                    </div>
-                {% endfor %}
-            </ul>
-        </div>
+        <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
+            {% csrf_token %}
+    
+            <input name="x" step="0.000000000000001" type="number">
+            <input name="y" step="0.000000000000001" type="number">
+            <input name="w" step="0.000000000000001" type="number">
+            <input name="h" step="0.000000000000001" type="number">
+            <button type="submit">Add Label</button>
+    
+        </form>
     </div>
     <div class="right">
         {% if frame_next_id != 0 %}
@@ -62,7 +65,13 @@
                 </a>
             </div>
         {% endif %}
-
+        <div class="homeBtn">
+            <a href="{% url 'home' %}">
+                <button style="color: rgb(47, 65, 79);" class="back-button">
+                    <i class="fa-solid fa-house"></i>
+                </button>
+            </a>
+        </div>
         {% if frame_previous_id != 0 %}
             <div class="backBtn">
                 <a href="{% url 'labeling' frame_id=frame_previous_id %}">
@@ -72,13 +81,7 @@
                 </a>
             </div>
         {% endif %}
-        <div class="homeBtn">
-            <a href="{% url 'home' %}">
-                <button style="color: rgb(47, 65, 79);" class="back-button">
-                    <i class="fa-solid fa-house"></i>
-                </button>
-            </a>
-        </div>
+        
         
     </div>
     <script>

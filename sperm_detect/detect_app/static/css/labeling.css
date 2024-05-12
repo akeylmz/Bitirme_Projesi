@@ -5,50 +5,61 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #6f03fc;;
+    height: 100vh;
+    background: #2a3240;;
+
 }
 
+button {
+    margin-bottom: 10px;
+}
 .frame-container {
     position: relative;
-    width: 70%;
+    width: 75%;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
     margin-top: 50px;
-}
+    text-align: center;
+    color: aliceblue;
 
+}
+.labels-container {
+    width: 20%;
+    height: 100vh;
+    overflow-y:auto;
+    overflow-x:visible;
+    background: #181f2a;
+    text-align: center;
+    color: aliceblue;
+}
+.label-container {
+   border: 1px solid;
+   border-color: aliceblue;
+}
+.right {
+    max-width: 5%;
+    height: 58vh;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    margin-top: 42vh;
+}
 .frame-img {
     max-width: 100%;
     height: auto;
     margin-bottom: 20px;
 }
-.label-box {
-    position: absolute;
-    border: 2px solid red;
-}
-.labels-container ul {
-    list-style-type: none;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-}
 
-.labels-container ul li {
-    margin-right: 20px;
-    margin-bottom: 20px;
-    cursor: pointer;
-    border: 1px solid #ccc;
-    padding: 10px;
+.label {
+    margin-top: 20px;
+    list-style-type: none; /* Liste elemanlarının noktalarını kaldırır */
+    text-decoration-color: aliceblue;
 }
 
 .label-details {
     display: none;
-    margin-top: 10px;
-    margin-bottom: 20px;
-    margin-right: 20px;
-    padding: 10px;
-    border: 1px solid #ccc;
 }
 
 .label-details.active {
