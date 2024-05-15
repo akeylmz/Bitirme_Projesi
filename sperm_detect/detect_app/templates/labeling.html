@@ -10,153 +10,184 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
 
 </head>
-<body>
-    <div class="labels-container">
-        <h2>Labels</h2>
-        <ul>
-            {% for label in labels %}
-            <div class="label-container">
-                <li class="label" data-id="{{ label.id }}" >Label-{{ label.id }}</li>
-                <div class="label-details" id="label-details-{{ label.id }}">
-                    <p>X: <span class="label-x">{{ label.x }}</span></p>
-                    <p>Y: <span class="label-y">{{ label.y }}</span></p>
-                    <p>Width: <span class="label-w">{{ label.w }}</span></p>
-                    <p>Height: <span class="label-h">{{ label.h }}</span></p>
-                    <a href="{% url 'delete_label' label_id=label.id %}">
-                        <button >DELETE</button>
+    <body>
+        <div class="labels-container">
+            <h2>Labels</h2>
+            <ul>
+                {% for label in labels %}
+                <div class="label-container">
+                    <li class="label" data-x="{{ label.x|calc_x:label.w }}"data-y="{{ label.y|calc_y:label.h }}"data-w="{{ label.w|calc_w }}"data-h="{{ label.h|calc_h }}" data-id="{{ label.id }}" >Label-{{ label.id }}</li>
+                    <div class="label-details" id="label-details-{{ label.id }}">
+                        <p>X: <span class="label-x">{{ label.x|calc_x:label.w }}</span></p>
+                        <p>Y: <span class="label-y">{{ label.y|calc_y:label.h }}</span></p>
+                        <p>Width: <span class="label-w">{{ label.w|calc_w }}</span></p>
+                        <p>Height: <span class="label-h">{{ label.h|calc_h }}</span></p>
+                        <a href="{% url 'delete_label' label_id=label.id %}">
+                            <button >DELETE</button>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="frame-container">
+            <!-- Canvas elementini buraya ekleyin -->
+            <p>{{frame.frame.url | basename | remove_extension }}/{{frame_last.frame.url | basename | remove_extension }}</p>
+            <canvas id="myCanvas" class="frame-img"></canvas>
+            <div id="mouseCoordinates"></div>
+            <div id="delete-button-detail">
+
+            </div>
+            <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
+                {% csrf_token %}
+        
+                <input name="x" step="0.000000000000001" type="number">
+                <input name="y" step="0.000000000000001" type="number">
+                <input name="w" step="0.000000000000001" type="number">
+                <input name="h" step="0.000000000000001" type="number">
+                <button type="submit">Add Label</button>
+            </form>
+        </div>
+        <div class="right">
+            {% if frame_next_id != 0 %}
+                <div class="nextBtn">
+                    <a href="{% url 'labeling' frame_id=frame_next_id %}">
+                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                            <i class="fa-solid fa-angles-right"></i>
+                        </button>
                     </a>
                 </div>
-            </div>
-            {% endfor %}
-        </ul>
-    </div>
-    
-    <div class="frame-container">
-        <!-- Canvas elementini buraya ekleyin -->
-        <p>{{frame.frame.url | basename | remove_extension }}/{{frame_last.frame.url | basename | remove_extension }}</p>
-        <canvas id="myCanvas" class="frame-img"></canvas>
-        <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
-            {% csrf_token %}
-    
-            <input name="x" step="0.000000000000001" type="number">
-            <input name="y" step="0.000000000000001" type="number">
-            <input name="w" step="0.000000000000001" type="number">
-            <input name="h" step="0.000000000000001" type="number">
-            <button type="submit">Add Label</button>
-    
-        </form>
-    </div>
-    <div class="right">
-        {% if frame_next_id != 0 %}
-            <div class="nextBtn">
-                <a href="{% url 'labeling' frame_id=frame_next_id %}">
-                    <button style="color: rgb(47, 65, 79);" class="back-button">
-                        <i class="fa-solid fa-angles-right"></i>
-                    </button>
-                </a>
-            </div>
-        {% else %}
-            <div class="nextBtn">
+            {% else %}
+                <div class="nextBtn">
+                    <a href="{% url 'home' %}">
+                        <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
+                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                            <i class="fa-solid fa-angles-right"></i>
+                        </button>
+                    </a>
+                </div>
+            {% endif %}
+            <div class="homeBtn">
                 <a href="{% url 'home' %}">
-                    <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
                     <button style="color: rgb(47, 65, 79);" class="back-button">
-                        <i class="fa-solid fa-angles-right"></i>
+                        <i class="fa-solid fa-house"></i>
                     </button>
                 </a>
             </div>
-        {% endif %}
-        <div class="homeBtn">
-            <a href="{% url 'home' %}">
-                <button style="color: rgb(47, 65, 79);" class="back-button">
-                    <i class="fa-solid fa-house"></i>
-                </button>
-            </a>
+            {% if frame_previous_id != 0 %}
+                <div class="backBtn">
+                    <a href="{% url 'labeling' frame_id=frame_previous_id %}">
+                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                            <i class="fa-solid fa-angles-left"></i>
+                        </button>
+                    </a>
+                </div>
+            {% endif %}
+            
+            
         </div>
-        {% if frame_previous_id != 0 %}
-            <div class="backBtn">
-                <a href="{% url 'labeling' frame_id=frame_previous_id %}">
-                    <button style="color: rgb(47, 65, 79);" class="back-button">
-                        <i class="fa-solid fa-angles-left"></i>
-                    </button>
-                </a>
-            </div>
-        {% endif %}
+        <script>
+            // Resmin yüklendiğinde çalışacak olan fonksiyon
+           // Canvas elementini seç
+var canvas = document.getElementById('myCanvas');
+var context = canvas.getContext('2d');
+var labels = document.querySelectorAll('.label');
+
+// Mouse hareketlerini izlemek için olay dinleyici ekle
+canvas.addEventListener('mousemove', function(event) {
+    // Fare konumunu al
+    var rect = canvas.getBoundingClientRect();
+    var mouseX = event.clientX - rect.left;
+    var mouseY = event.clientY - rect.top;
+    
+    // Fare konumunu kanvasın koordinatlarına dönüştür
+    var canvasX = Math.floor(mouseX * canvas.width / rect.width);
+    var canvasY = Math.floor(mouseY * canvas.height / rect.height);
+    
+    // Fare konumunu ekrana yazdır
+    document.getElementById('mouseCoordinates').innerText = 'X: ' + canvasX + ', Y: ' + canvasY;
+});
+
+// Canvas üzerine tıklandığında olay dinleyici ekle
+canvas.addEventListener('click', function(event) {
+    // Tıklanan noktanın koordinatlarını al
+    var rect = canvas.getBoundingClientRect();
+    var mouseX = event.clientX - rect.left;
+    var mouseY = event.clientY - rect.top;
+    var canvasX = Math.floor(mouseX * canvas.width / rect.width);
+    var canvasY = Math.floor(mouseY * canvas.height / rect.height);
+
+    console.log('Tıklamanın konumları:', canvasX, canvasY );
+    // Her bir label için kontrol et
+    labels.forEach(function(label) {
+        // Label'ın verilerini al
+        var labelX = parseFloat(label.dataset.x);
+        var labelY = parseFloat(label.dataset.y);
+        var labelW = parseFloat(label.dataset.w);
+        var labelH = parseFloat(label.dataset.h);
+        var labelId = label.dataset.id;
         
-        
-    </div>
-    <script>
-        // Resmin yüklendiğinde çalışacak olan fonksiyon
-        function drawLabels() {
-            // Canvas elementini seç
-            var canvas = document.getElementById('myCanvas');
-            var context = canvas.getContext('2d');
+        // Eğer tıklanan nokta bir etiketin içinde ise
+        if (canvasX >= labelX && canvasX <= labelX + labelW && canvasY >= labelY && canvasY <= labelY + labelH) {
+            // Etiketin idsini yazdır
+            console.log('Tıklanan etiketin ID\'si:', labelId);
+            // veya bir HTML öğesine yazdırabilirsiniz
+            document.getElementById('delete-button-detail').innerText = 'Tıklanan etiketin ID\'si: ' + labelId;
 
-            // Resmi çiz
-            var image = new Image();
-            image.onload = function() {
-                canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
-                canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
-                context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
-
-                // Kare çerçeveleri çiz
-                context.lineWidth = 1;
-                context.strokeStyle = 'red';
-                {% for label in labels %}
-                    x_c={{ label.x }} - {{ label.w }}/2
-                    x=x_c*image.width
-                    y_c={{ label.y }} - {{ label.h }}/2
-                    y=y_c*image.height
-                    w={{ label.w }}*image.width
-                    h={{ label.h }}*image.height
-                    console.log('x:'+x)
-                    console.log('w:'+w)
-                    //context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
-                    //context.strokeRect({{ label.x }}*image.width*0.99, {{ label.y }}*image.height*0.97, {{ label.w }}*image.width, {{ label.h }}*image.height);
-                    context.strokeRect(x, y, w, h);                    
-                    //context.strokeRect({{ label.x }}*640, {{ label.y }}*640, {{ label.w }}*640, {{ label.h }}*640);
-
-                {% endfor %}
-            };
-            image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
+            
+            context.lineWidth = 1;
+            context.strokeStyle = 'yellow';
+            context.strokeRect(labelX, labelY, labelW, labelH);
+            var details = document.getElementById(`label-details-${labelId}`);
+                    details.classList.toggle('active');
         }
+    });
+});
 
-        // Sayfa yüklendiğinde resmi ve kare çerçeveleri çiz
-        window.onload = drawLabels;
+            
+            function drawLabels() {
+        
+                // Resmi çiz
+                var image = new Image();
+                image.onload = function() {
+                    canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
+                    canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
+                    context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
 
-        var canvas = document.getElementById('myCanvas');
-        canvas.addEventListener('click', function(event) {
-            var x = event.offsetX;
-            var y = event.offsetY;
-            var labels = document.querySelectorAll('.label');
-            labels.forEach(function(label) {
-                var labelX = parseInt(label.getAttribute('data-x'));
-                var labelY = parseInt(label.getAttribute('data-y'));
-                var labelW = parseInt(label.getAttribute('data-w'));
-                var labelH = parseInt(label.getAttribute('data-h'));
-                if (x >= labelX && x <= (labelX + labelW) && y >= labelY && y <= (labelY + labelH)) {
-                    var labelId = label.getAttribute('data-id');
-                    var labelDetails = document.getElementById('label-details-' + labelId);
-                    if (labelDetails) {
-                        var activeDetails = document.querySelector('.label-details.active');
-                        if (activeDetails) {
-                            activeDetails.classList.remove('active');
-                        }
-                        labelDetails.classList.add('active');
-                    }
-                }
+                    // Kare çerçeveleri çiz
+                    context.lineWidth = 1;
+                    context.strokeStyle = 'red';
+                    {% for label in labels %}
+                        x_c={{ label.x }} - {{ label.w }}/2
+                        x=x_c*image.width
+                        y_c={{ label.y }} - {{ label.h }}/2
+                        y=y_c*image.height
+                        w={{ label.w }}*image.width
+                        h={{ label.h }}*image.height
+                        
+                        //context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
+                        //context.strokeRect({{ label.x }}*image.width*0.99, {{ label.y }}*image.height*0.97, {{ label.w }}*image.width, {{ label.h }}*image.height);
+                        context.strokeRect(x, y, w, h);                    
+                        //context.strokeRect({{ label.x }}*640, {{ label.y }}*640, {{ label.w }}*640, {{ label.h }}*640);
+
+                    {% endfor %}
+                };
+                image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
+            }
+
+            // Sayfa yüklendiğinde resmi ve kare çerçeveleri çiz
+            window.onload = drawLabels;
+        </script>
+        <script>
+
+            labels.forEach(label => {
+                label.addEventListener('click', () => {
+                    const id = label.getAttribute('data-id');
+                    const details = document.getElementById(`label-details-${id}`);
+                    details.classList.toggle('active');
+                });
             });
-        });
-    </script>
-    <script>
-        const labels = document.querySelectorAll('.label');
-
-        labels.forEach(label => {
-            label.addEventListener('click', () => {
-                const id = label.getAttribute('data-id');
-                const details = document.getElementById(`label-details-${id}`);
-                details.classList.toggle('active');
-            });
-        });
-    </script>
-</body>
+        </script>
+    </body>
 </html>

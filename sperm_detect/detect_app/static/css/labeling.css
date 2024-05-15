@@ -65,3 +65,11 @@ button {
 .label-details.active {
     display: block;
 }
+
+#delete-button-detail {
+    display: none;
+}
+
+#delete-button-detail.active {
+    display: block;
+}
