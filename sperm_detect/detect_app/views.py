@@ -1,17 +1,12 @@
 from django.http import HttpResponseRedirect, JsonResponse,HttpResponse
 from django.shortcuts import get_object_or_404, render, redirect
-import cv2
-import numpy as np
-import os
-from sperm_detect import settings
-from ultralytics import YOLO
 from django.contrib.auth import authenticate, login, logout
 from .forms import UserVideoForm
-from tempfile import NamedTemporaryFile
 from.models import UserVideo, VideoFrames, FrameLabels
-from django.core.files.base import ContentFile
-
-from django.core.files.base import File
+from django.core.files.base import ContentFile, File
+import json
+import cv2
+import os
 
 def split_video_frames(user_video):
     video_path = user_video.video_file.path
@@ -88,9 +83,6 @@ def get_json(request, user_video_id):
 
     return render(request, 'get_json.html')
 
-from django.http import HttpResponse
-import json
-
 def user_video_frames_labels(request, user_video_id):
     try:
         user_video = UserVideo.objects.get(pk=user_video_id)
@@ -144,11 +136,17 @@ def delete_label(request, label_id):
 
 def add_label(request, frame_id):
     if request.method == 'POST':
-        x=request.POST.get('x')
-        y=request.POST.get('y')
-        w=request.POST.get('w')
-        h=request.POST.get('h')
+        x = float(request.POST.get('x'))
+        y = float(request.POST.get('y'))
+        w = float(request.POST.get('w'))
+        h = float(request.POST.get('h'))
         frame=get_object_or_404(VideoFrames, id=frame_id)
+        x=x/1920
+        w=w/1920
+        y=y/1080
+        h=h/1080
+        y=y+h/2
+        x=x+w/2
         label=FrameLabels.objects.create(
             labels_frame=frame,
             x=x,

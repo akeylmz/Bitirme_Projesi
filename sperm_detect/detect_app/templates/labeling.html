@@ -39,14 +39,14 @@
             <div id="delete-button-detail">
 
             </div>
-            <form action="{% url 'add_label' frame_id=frame.id %}" method="post">
+            <form id="label-form" action="{% url 'add_label' frame_id=frame.id %}" method="post">
                 {% csrf_token %}
         
-                <input name="x" step="0.000000000000001" type="number">
-                <input name="y" step="0.000000000000001" type="number">
-                <input name="w" step="0.000000000000001" type="number">
-                <input name="h" step="0.000000000000001" type="number">
-                <button type="submit">Add Label</button>
+                <input id="x-input" name="x" step="0.000000000000001" type="number">
+                <input id="y-input" name="y" step="0.000000000000001" type="number">
+                <input id="w-input" name="w" step="0.000000000000001" type="number">
+                <input id="h-input" name="h" step="0.000000000000001" type="number">
+                <button type="submit" style="display: none;">Add Label</button>
             </form>
         </div>
         <div class="right">
@@ -84,7 +84,13 @@
                     </a>
                 </div>
             {% endif %}
-            
+            <div class="drawBtn">
+                <a href="#">
+                    <button id="draw-label-button" style="color: rgb(47, 65, 79);" class="back-button">
+                        <i class="fa-solid fa-pencil"></i>                    
+                    </button>
+                </a>
+            </div>
             
         </div>
         <script>
@@ -93,6 +99,62 @@
 var canvas = document.getElementById('myCanvas');
 var context = canvas.getContext('2d');
 var labels = document.querySelectorAll('.label');
+var startX, startY; // İlk tıklanan noktanın koordinatları
+var isDrawing = false; // Etiket çizimi devam ediyor mu?
+
+document.getElementById('draw-label-button').addEventListener('click', function() {
+    isDrawing = true;
+    // İlk tıklama noktasının koordinatlarını sıfırla
+    startX = null;
+    startY = null;
+});
+
+canvas.addEventListener('click', function(event) {
+    // Etiket çizimi devam ediyorsa
+    if (isDrawing) {
+        // Tıklanan noktanın koordinatlarını al
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        var mouseY = event.clientY - rect.top;
+
+        // İlk noktayı belirle
+        if (!startX && !startY) {
+            startX = mouseX;
+            startY = mouseY;
+            startX = Math.floor(startX * canvas.width / rect.width);
+            startY = Math.floor(startY * canvas.height / rect.height);
+            console.log('İlk start (x,y):', startX, startY);
+
+        } else {
+            // İkinci noktayı belirle ve etiketi çiz
+
+            mouseX = Math.floor(mouseX * canvas.width / rect.width);
+            mouseY = Math.floor(mouseY * canvas.height / rect.height);
+            console.log('2. nokta (x,y):', mouseX, mouseY);
+
+            var width = mouseX - startX;
+            var height = mouseY - startY;
+            context.strokeRect(startX, startY, width, height);
+
+            document.getElementById('x-input').value = parseFloat(startX);
+            document.getElementById('y-input').value = parseFloat(startY);
+            document.getElementById('w-input').value = parseFloat(width);
+            document.getElementById('h-input').value = parseFloat(height);
+
+            // Formu gönder
+            document.getElementById('label-form').submit();
+
+            // Etiket çizimini bitir
+            isDrawing = false;
+            // Etiket çizimini bitir
+            isDrawing = false;
+
+            // Etiketin koordinatlarını ve boyutunu yazdır
+            console.log('Genişlik:', width);
+            console.log('Yükseklik:', height);
+        }
+    }
+});
 
 // Mouse hareketlerini izlemek için olay dinleyici ekle
 canvas.addEventListener('mousemove', function(event) {
@@ -118,7 +180,6 @@ canvas.addEventListener('click', function(event) {
     var canvasX = Math.floor(mouseX * canvas.width / rect.width);
     var canvasY = Math.floor(mouseY * canvas.height / rect.height);
 
-    console.log('Tıklamanın konumları:', canvasX, canvasY );
     // Her bir label için kontrol et
     labels.forEach(function(label) {
         // Label'ın verilerini al
