@@ -35,7 +35,14 @@
             </button>
         </a>
         <a href="{% url 'user_video_frames_labels' user_video_id=user_video.id %}" download>
-            <button class="btn btn-light">Download JSON</button>
+            <button class="btn btn-light">
+                Download JSON
+            </button>
+        </a>
+        <a href="{% url 'txt_frames' user_video_id=user_video.id %}" download>
+            <button class="btn btn-light">
+                Download .txt - frame
+            </button>
         </a>
     </div>
     {% endif %}
