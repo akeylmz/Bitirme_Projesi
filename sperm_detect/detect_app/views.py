@@ -1,19 +1,25 @@
 from django.http import HttpResponseRedirect, JsonResponse,HttpResponse
 from django.shortcuts import get_object_or_404, render, redirect
 from django.contrib.auth import authenticate, login, logout
-from .forms import UserVideoForm
-from.models import UserVideo, VideoFrames, FrameLabels
+from .forms import UserVideoForm, ClassForm, ModelForm
+from.models import UserVideo, VideoFrames, FrameLabels, Class, DetectModels
 from django.core.files.base import ContentFile, File
 import json
 import cv2
 import os
 import zipfile
 from io import BytesIO
+from django.db.models import Count
+from sperm_detect.settings import BEST_PT_PATH
+from ultralytics import YOLO
+#Views.
+
 def split_video_frames(user_video):
     video_path = user_video.video_file.path
     video = cv2.VideoCapture(video_path)
     count = 1
-
+    
+    model = YOLO(user_video.model.model_file.path)
     while True:
         success, frame = video.read()
 
@@ -36,46 +42,46 @@ def split_video_frames(user_video):
         new_frame.frame.save(frame_path, File(frame_content))
 
         new_frame.save()
+        
+        frame_path = new_frame.frame.path
+
+        # Run batched inference on a list of images
+        results = model.predict(frame_path)
+
+        for r in results:
+            if r.boxes.xywhn.tolist() is not None:
+                for c in r.boxes.xywhn.tolist(): # To get the coordinates.
+                    x, y, w, h = c[0], c[1], c[2], c[3] # x, y are the center coordinates.
+                    class_id = int(r.boxes.cls[results.index(r)])  # Get the class ID
+            
+                    # Get the current video model
+                    current_video_model = user_video.model
+                    
+                    # Check if the class with the given class_id exists for the current model
+                    class_obj, created = Class.objects.get_or_create(
+                        class_model=current_video_model,
+                        class_id=class_id,
+                        defaults={'class_name': model.names[class_id] if class_id < len(model.names) else ""}
+                    )
+                    #label_file.write(f'{x} {y} {w} {h}\n')  # Etiket bilgilerini dosyaya yaz
+                    label_new= FrameLabels.objects.create(
+                        labels_frame=new_frame,
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        labels_class=class_obj  # Link to the class object
+
+                    )
+                
+
+                    
+                    
 
         count += 1
 
     video.release()
     return count
-
-def home(request):
-    if request.method == 'POST':
-        form = UserVideoForm(request.POST, request.FILES)
-        if form.is_valid():
-            form.instance.user = request.user
-            user_video=form.save()
-            # Video dosyasını işleyerek frameleri ayır
-            split_video_frames(user_video)
-            frame=VideoFrames.objects.filter(video=user_video).first()
-            frame_id=frame.id
-            return redirect('labeling', frame_id=frame_id)
-    else:
-        form = UserVideoForm()
-    user_video=UserVideo.objects.filter(user=request.user).last()
-    frame=VideoFrames.objects.filter(video=user_video).first()
-    return render(request, 'home.html', {'form': form, 'frame':frame, 'user_video':user_video})
-
-def labeling(request, frame_id):
-    frame= VideoFrames.objects.filter(id=frame_id).first()
-    user_video = get_object_or_404(UserVideo,id=frame.video.id)
-    frame_last = user_video.video_frames.last()
-    frame_first = user_video.video_frames.first()
-
-    frame_next_id=int(frame_id)+1
-    frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
-    if frame_next is None:
-        frame_next_id = 0
-
-    frame_previous_id=int(frame_id)-1
-
-    if frame_previous_id <frame_first.id:
-        frame_previous_id = 0
-    labels= FrameLabels.objects.filter(labels_frame=frame_id)
-    return render(request, 'labeling.html', {'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
 
 def zip_directory(directory_path):
     # Geçici bellek nesnesi oluştur
@@ -87,6 +93,8 @@ def zip_directory(directory_path):
                 file_path = os.path.join(root, file)
                 zip_file.write(file_path, os.path.relpath(file_path, directory_path))
     return zip_buffer
+
+# Downloads.
 
 def txt_frames(request, user_video_id):
     try:
@@ -103,12 +111,17 @@ def txt_frames(request, user_video_id):
             frame_name = os.path.splitext(os.path.basename(frame_path))[0]
             
             labels = frame.frame_labels.all()
-            labels_dir = os.path.join('media', frame.video.user.username, str(frame.video.id), 'labels')
+            first_label = labels.first()
+            if first_label:
+                class_name =  first_label.labels_class.class_name
+            else:
+                class_name = "none"
+            labels_dir = os.path.join('media', frame.video.user.username, str(frame.video.id), 'labels', class_name)
             os.makedirs(labels_dir, exist_ok=True)  # Klasörü oluştur (varsa hata vermez)
             label_file_path = os.path.join(labels_dir, frame_name + '.txt')
             with open(label_file_path, 'w') as label_file:
                 for label in labels:
-                    label_file.write(f'{label.x} {label.y} {label.w} {label.h}\n')  # Etiket bilgilerini dosyaya yaz
+                    label_file.write(f'{label.labels_class.class_id} {label.x} {label.y} {label.w} {label.h}\n')  # Etiket bilgilerini dosyaya yaz
         if not os.path.exists(directory_path):
             return JsonResponse({'error': 'Directory does not exist'}, status=404)
         
@@ -133,7 +146,7 @@ def user_video_frames_labels(request, user_video_id):
         frames = user_video.video_frames.all()
         date_create = user_video.date_uploaded.strftime('%d-%m-%Y')
         date_year = user_video.date_uploaded.strftime('%Y')
-
+        frames_count=len(frames)
         user_name=user_video.user
         desc = f"{user_name}'s Video Frames Labels"
         print(date_create)
@@ -153,6 +166,7 @@ def user_video_frames_labels(request, user_video_id):
                     "url": "http://creativecommons.org/licenses/by-nc-sa/2.0/"
                 }
             ],
+            "images_number": frames_count,
             "images": [],
             "annotations": [],
             "categories": [
@@ -211,10 +225,102 @@ def user_video_frames_labels(request, user_video_id):
     except UserVideo.DoesNotExist:
         return JsonResponse({'error': 'User video does not exist'}, status=404)
 
+# Template.
+
+def home(request):
+    if request.method == 'POST':
+        form = UserVideoForm(request.POST, request.FILES)
+        model_form = ModelForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            form.instance.user = request.user
+            user_video=form.save()
+            # Video dosyasını işleyerek frameleri ayır
+            split_video_frames(user_video)
+            frame=VideoFrames.objects.filter(video=user_video).first()
+            frame_id=frame.id
+            return redirect('labeling', frame_id=frame_id)
+        elif model_form.is_valid():
+            model_form.save()
+            return redirect('home')
+    else:
+        form = UserVideoForm()
+        model_form = ModelForm()
+
+    user_video=UserVideo.objects.filter(user=request.user).last()
+    user_videos=UserVideo.objects.filter(user=request.user)
+    models=DetectModels.objects.all()
+    frame=VideoFrames.objects.filter(video=user_video).first()
+    return render(request, 'home.html', {'form': form, 'frame':frame, 'user_video':user_video, 'user_videos':user_videos, 'model_form':model_form, 'models':models})
+
+def video(request, user_video_id):
+    
+    user_video=UserVideo.objects.filter(id=user_video_id).first()
+
+    frame=VideoFrames.objects.filter(video=user_video).first()
+    if frame:
+        frames=VideoFrames.objects.filter(video=user_video)
+        frame_count=len(frames)
+        total_labels = user_video.video_frames.aggregate(count=Count('frame_labels'))['count'] or 0
+        rate0=total_labels/frame_count
+        rate = f"{rate0:.2f}"
+    else:
+        frames=None
+        frame_count=None
+        total_labels = None
+        rate0=None
+        rate = None
+
+    return render(request, 'video.html', {'frame':frame,'frame_count':frame_count, 'total_labels':total_labels, 'user_video':user_video, 'rate':rate})
+
+def labeling(request, frame_id):
+    frame= VideoFrames.objects.filter(id=frame_id).first()
+    user_video = get_object_or_404(UserVideo,id=frame.video.id)
+    frame_last = user_video.video_frames.last()
+    frame_first = user_video.video_frames.first()
+
+    frame_next_id=int(frame_id)+1
+    frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
+    if frame_next is None:
+        frame_next_id = 0
+
+    frame_previous_id=int(frame_id)-1
+
+    if frame_previous_id <frame_first.id:
+        frame_previous_id = 0
+    labels= FrameLabels.objects.filter(labels_frame=frame_id)
+    clases=Class.objects.filter(class_model=user_video.model)
+    return render(request, 'labeling.html', {'video':user_video,'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id, 'clases':clases})
+
+def deneme(request, frame_id):
+    frame= VideoFrames.objects.filter(id=frame_id).first()
+    user_video = get_object_or_404(UserVideo,id=frame.video.id)
+    frame_last = user_video.video_frames.last()
+    frame_first = user_video.video_frames.first()
+
+    frame_next_id=int(frame_id)+1
+    frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
+    if frame_next is None:
+        frame_next_id = 0
+
+    frame_previous_id=int(frame_id)-1
+
+    if frame_previous_id <frame_first.id:
+        frame_previous_id = 0
+    labels= FrameLabels.objects.filter(labels_frame=frame_id)
+    return render(request, 'deneme.html', {'video':user_video,'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
+
+#  add- Delete.
+
 def delete_label(request, label_id):
     label=get_object_or_404(FrameLabels, id=label_id)
     label.delete()
     return redirect(request.META.get('HTTP_REFERER'))
+
+def delete_video(request, video_id):
+    video=get_object_or_404(UserVideo, id=video_id)
+    video.delete()
+    return redirect('home')
 
 def add_label(request, frame_id):
     if request.method == 'POST':
@@ -222,23 +328,60 @@ def add_label(request, frame_id):
         y = float(request.POST.get('y'))
         w = float(request.POST.get('w'))
         h = float(request.POST.get('h'))
+        labels_class = request.POST.get('labels_class')
+        labels_count = int(request.POST.get('labels_count'))  # Ensure labels_count is an integer
+
         frame=get_object_or_404(VideoFrames, id=frame_id)
+        class_object=get_object_or_404(Class, id=labels_class)
+        video = frame.video
+
         x=x/1920
         w=w/1920
         y=y/1080
         h=h/1080
         y=y+h/2
         x=x+w/2
-        label=FrameLabels.objects.create(
-            labels_frame=frame,
-            x=x,
-            y=y,
-            w=w,
-            h=h
-        )
+
+        all_frames = VideoFrames.objects.filter(video=video).order_by('id')
+        start_index = list(all_frames).index(frame)
+        frames_to_label = all_frames[start_index:start_index + labels_count]
+
+        for f in frames_to_label:
+            FrameLabels.objects.create(
+                labels_frame=f,
+                x=x,
+                y=y,
+                w=w,
+                h=h,
+                labels_class=class_object
+            )
     return redirect(request.META.get('HTTP_REFERER'))
 
-# Create your views here.
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def update_label(request, label_id):
+    label=FrameLabels.objects.filter(id=label_id)
+    frame=label.labels_frame
+    if request.method == 'POST':
+        x = float(request.POST.get('x'))
+        y = float(request.POST.get('y'))
+        w = float(request.POST.get('w'))
+        h = float(request.POST.get('h'))
+        x=x/1920
+        w=w/1920
+        y=y/1080
+        h=h/1080
+        y=y+h/2
+        x=x+w/2
+        label.x=x
+        label.y=y
+        label.w=w
+        label.h=h
+        label.save()
+    return redirect(request.META.get('HTTP_REFERER'))
+
+# Account.
 def login_request(request):
     if request.method == "POST":
         username = request.POST["username"]

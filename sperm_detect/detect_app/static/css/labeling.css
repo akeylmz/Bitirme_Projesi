@@ -66,6 +66,14 @@ button {
     display: block;
 }
 
+.label-details-frame {
+    display: none;
+}
+
+.label-details-frame.active {
+    display: block;
+}
+
 #delete-button-detail {
     display: none;
 }

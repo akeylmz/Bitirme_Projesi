@@ -16,7 +16,7 @@
             <ul>
                 {% for label in labels %}
                 <div class="label-container">
-                    <li class="label" data-x="{{ label.x|calc_x:label.w }}"data-y="{{ label.y|calc_y:label.h }}"data-w="{{ label.w|calc_w }}"data-h="{{ label.h|calc_h }}" data-id="{{ label.id }}" >Label-{{ label.id }}</li>
+                    <li class="label" data-x="{{ label.x|calc_x:label.w }}"data-y="{{ label.y|calc_y:label.h }}"data-w="{{ label.w|calc_w }}"data-h="{{ label.h|calc_h }}" data-id="{{ label.id }}" >{{ label.labels_class.class_name }}-{{ label.id }}</li>
                     <div class="label-details" id="label-details-{{ label.id }}">
                         <p>X: <span class="label-x">{{ label.x|calc_x:label.w }}</span></p>
                         <p>Y: <span class="label-y">{{ label.y|calc_y:label.h }}</span></p>
@@ -35,19 +35,34 @@
             <!-- Canvas elementini buraya ekleyin -->
             <p>{{frame.frame.url | basename | remove_extension }}/{{frame_last.frame.url | basename | remove_extension }}</p>
             <canvas id="myCanvas" class="frame-img"></canvas>
+
             <div id="mouseCoordinates"></div>
             <div id="delete-button-detail">
 
             </div>
-            <form id="label-form" action="{% url 'add_label' frame_id=frame.id %}" method="post">
+            <form style="display: none;" id="label-form" action="{% url 'add_label' frame_id=frame.id %}" method="post">
                 {% csrf_token %}
         
                 <input id="x-input" name="x" step="0.000000000000001" type="number">
                 <input id="y-input" name="y" step="0.000000000000001" type="number">
                 <input id="w-input" name="w" step="0.000000000000001" type="number">
                 <input id="h-input" name="h" step="0.000000000000001" type="number">
+                <input id="id_labels_class"  name="labels_class" type="number">
+                <input id="id_label_count"  name="labels_count" type="number">
+
                 <button type="submit" style="display: none;">Add Label</button>
             </form>
+            {% for label in labels %}
+            <div class="label-container">
+                <div class="label-details-frame" id="label-details-frame-{{ label.id }}">
+                    
+                    
+                    <a style="text-decoration: none; color: white;" href="{% url 'delete_label' label_id=label.id %}">
+                        <span>Label-{{ label.id }}</span><button >DELETE</button>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
         </div>
         <div class="right">
             {% if frame_next_id != 0 %}
@@ -69,7 +84,7 @@
                 </div>
             {% endif %}
             <div class="homeBtn">
-                <a href="{% url 'home' %}">
+                <a href="{% url 'video' user_video_id=video.id %}">
                     <button style="color: rgb(47, 65, 79);" class="back-button">
                         <i class="fa-solid fa-house"></i>
                     </button>
@@ -84,6 +99,12 @@
                     </a>
                 </div>
             {% endif %}
+            
+            <div class="updateBtn">
+                    <button id="update-labels-button" style="color: rgb(47, 65, 79);" class="back-button">
+                        <i class="fa-solid fa-hand"></i>                    
+                    </button>
+            </div>
             <div class="drawBtn">
                 <a href="#">
                     <button id="draw-label-button" style="color: rgb(47, 65, 79);" class="back-button">
@@ -91,6 +112,22 @@
                     </button>
                 </a>
             </div>
+            <div class="draw-det">
+                <select name="draw-count" id="id_draw-count">
+                    <option value="1" selected>1</option>
+                    <option value="5">5</option>
+                    <option value="10">10</option>
+                    <option value="20">20</option>
+                    <option value="50">50</option>
+                </select>
+                <select name="draw-class" id="id_draw-class">
+                    {% for class in clases%}
+                    <option value="{{class.id}}">{{class.class_name}}</option>
+                    {%endfor%}
+                </select>
+
+            </div>
+
             
         </div>
         <script>
@@ -101,6 +138,9 @@ var context = canvas.getContext('2d');
 var labels = document.querySelectorAll('.label');
 var startX, startY; // İlk tıklanan noktanın koordinatları
 var isDrawing = false; // Etiket çizimi devam ediyor mu?
+var isDragging = false;
+var dragLabel = null;
+var offsetX, offsetY;
 
 document.getElementById('draw-label-button').addEventListener('click', function() {
     isDrawing = true;
@@ -135,11 +175,15 @@ canvas.addEventListener('click', function(event) {
             var width = mouseX - startX;
             var height = mouseY - startY;
             context.strokeRect(startX, startY, width, height);
-
+            var count=document.getElementById('id_draw-count').value;
+            var labels_class=document.getElementById('id_draw-class').value;
             document.getElementById('x-input').value = parseFloat(startX);
             document.getElementById('y-input').value = parseFloat(startY);
             document.getElementById('w-input').value = parseFloat(width);
             document.getElementById('h-input').value = parseFloat(height);
+            document.getElementById('h-input').value = parseFloat(height);
+            document.getElementById('id_labels_class').value = labels_class;
+            document.getElementById('id_label_count').value = count;
 
             // Formu gönder
             document.getElementById('label-form').submit();
@@ -200,13 +244,93 @@ canvas.addEventListener('click', function(event) {
             context.lineWidth = 1;
             context.strokeStyle = 'yellow';
             context.strokeRect(labelX, labelY, labelW, labelH);
-            var details = document.getElementById(`label-details-${labelId}`);
-                    details.classList.toggle('active');
+            
+            const allDetailsFrames = document.querySelectorAll('.label-details-frame');
+            allDetailsFrames.forEach(frame => {
+                if (frame.id !== labelId) {
+                    frame.style.display = 'none';
+                }
+            });
+
+            const clickedFrame = document.getElementById(`label-details-frame-${labelId}`);
+            clickedFrame.style.display = clickedFrame.style.display === 'none' ? 'block' : 'none';
+            
+           
         }
     });
 });
 
-            
+          
+document.getElementById('update-labels-button').addEventListener('click', function() {
+    labels.forEach(function(label) {
+        label.addEventListener('mousedown', startDrag);
+        label.addEventListener('mousemove', drag);
+        label.addEventListener('mouseup', endDrag);
+    });
+});
+
+function startDrag(event) {
+    isDragging = true;
+    dragLabel = event.target;
+    var rect = canvas.getBoundingClientRect();
+    var mouseX = event.clientX - rect.left;
+    var mouseY = event.clientY - rect.top;
+
+    offsetX = mouseX - parseFloat(dragLabel.dataset.x);
+    offsetY = mouseY - parseFloat(dragLabel.dataset.y);
+}
+
+function drag(event) {
+    if (isDragging && dragLabel) {
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        var mouseY = event.clientY - rect.top;
+
+        var newX = mouseX - offsetX;
+        var newY = mouseY - offsetY;
+
+        dragLabel.dataset.x = newX;
+        dragLabel.dataset.y = newY;
+        
+        drawLabels();
+    }
+}
+
+function endDrag(event) {
+    if (isDragging) {
+        isDragging = false;
+        updateLabel(dragLabel);
+    }
+}
+
+function updateLabel(label) {
+    var labelId = label.dataset.id;
+    var x = parseFloat(label.dataset.x);
+    var y = parseFloat(label.dataset.y);
+    var w = parseFloat(label.dataset.w);
+    var h = parseFloat(label.dataset.h);
+
+    var formData = new FormData();
+    formData.append('x', x);
+    formData.append('y', y);
+    formData.append('w', w);
+    formData.append('h', h);
+
+    fetch(`/update_label/${labelId}/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    }).then(response => {
+        if (response.ok) {
+            console.log('Label updated successfully');
+        } else {
+            console.error('Error updating label');
+        }
+    });
+}
+
             function drawLabels() {
         
                 // Resmi çiz

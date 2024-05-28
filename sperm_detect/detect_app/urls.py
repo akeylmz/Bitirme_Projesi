@@ -4,8 +4,16 @@ from . import views
 urlpatterns = [
     path('home', views.home, name='home'),
     path('labeling/<frame_id>', views.labeling, name='labeling'),
+    path('deneme/<frame_id>', views.deneme, name='deneme'),
+
+    path('video/<user_video_id>', views.video, name='video'),
+
+    path('delete_video/<video_id>', views.delete_video, name='delete_video'),
+
     path('delete_label/<label_id>', views.delete_label, name='delete_label'),
     path('add_label/<frame_id>', views.add_label, name='add_label'),
+    path('update_label/<label_id>', views.update_label, name='update_label'),
+
     path('user_video_frames_labels/<user_video_id>', views.user_video_frames_labels, name='user_video_frames_labels'),
     path('txt_frames/<user_video_id>', views.txt_frames, name='txt_frames'),
 

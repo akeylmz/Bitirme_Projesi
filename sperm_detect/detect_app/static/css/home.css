@@ -78,3 +78,33 @@ h1 {
 .demo-form1 input[type="submit"]:hover {
     background-color: #c00d3a;
 }
+
+.videos {
+    width: 100%;
+    max-height: 300px;
+    display: flex;
+    white-space: nowrap;
+    border: 1px solid #ccc;
+    justify-content: center; /* Yatayda ortalama */
+    align-items: center; /* Dikeyde ortalama */
+    text-decoration:none;
+    overflow-x: scroll;
+}
+.videos video {
+    pointer-events: none; /* Video oynatmayı devre dışı bırakır */
+    flex-shrink: 0;
+    margin-right: 10px;
+    background: #000; /* Yüklenmeyen videolar için arka plan rengi */
+}
+
+.videos video:last-child {
+    margin-right: 0;
+}
+a {
+    text-decoration: none;
+    color: white;
+}
+.unit_vid {
+    width: 200px;
+    margin-right: 10px;
+}
