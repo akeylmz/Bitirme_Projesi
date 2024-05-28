@@ -10,7 +10,6 @@ import os
 import zipfile
 from io import BytesIO
 from django.db.models import Count
-from sperm_detect.settings import BEST_PT_PATH
 from ultralytics import YOLO
 #Views.
 
@@ -273,7 +272,7 @@ def video(request, user_video_id):
 
     return render(request, 'video.html', {'frame':frame,'frame_count':frame_count, 'total_labels':total_labels, 'user_video':user_video, 'rate':rate})
 
-def labeling(request, frame_id):
+def labeling(request, frame_id, mode, option_count, option_class):
     frame= VideoFrames.objects.filter(id=frame_id).first()
     user_video = get_object_or_404(UserVideo,id=frame.video.id)
     frame_last = user_video.video_frames.last()
@@ -290,7 +289,19 @@ def labeling(request, frame_id):
         frame_previous_id = 0
     labels= FrameLabels.objects.filter(labels_frame=frame_id)
     clases=Class.objects.filter(class_model=user_video.model)
-    return render(request, 'labeling.html', {'video':user_video,'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id, 'clases':clases})
+    draw_counts=[1,5,10,20,50]
+    return render(request, 'labeling.html', 
+                  {'video':user_video,
+                   'frame': frame,
+                   'frame_next_id': frame_next_id,
+                    'labels':labels,'frame_last':frame_last, 
+                    'frame_previous_id':frame_previous_id, 
+                    'clases':clases, 
+                    'mode':mode, 
+                    'option_count':option_count, 
+                    'option_class':option_class,
+                    'draw_counts':draw_counts
+                    })
 
 def deneme(request, frame_id):
     frame= VideoFrames.objects.filter(id=frame_id).first()
@@ -310,6 +321,31 @@ def deneme(request, frame_id):
     labels= FrameLabels.objects.filter(labels_frame=frame_id)
     return render(request, 'deneme.html', {'video':user_video,'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
 
+def upload_frames(request):
+    if request.method == 'POST':
+        form = UserVideoForm(request.POST, request.FILES)
+        model_form = ModelForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            form.instance.user = request.user
+            user_video=form.save()
+            # Video dosyasını işleyerek frameleri ayır
+            split_video_frames(user_video)
+            frame=VideoFrames.objects.filter(video=user_video).first()
+            frame_id=frame.id
+            return redirect('labeling', frame_id=frame_id)
+        elif model_form.is_valid():
+            model_form.save()
+            return redirect('home')
+    else:
+        form = UserVideoForm()
+        model_form = ModelForm()
+
+    user_video=UserVideo.objects.filter(user=request.user).last()
+    user_videos=UserVideo.objects.filter(user=request.user)
+    models=DetectModels.objects.all()
+    frame=VideoFrames.objects.filter(video=user_video).first()
+    return render(request, 'upload_frames.html', {'form': form, 'frame':frame, 'user_video':user_video, 'user_videos':user_videos, 'model_form':model_form, 'models':models})
 #  add- Delete.
 
 def delete_label(request, label_id):

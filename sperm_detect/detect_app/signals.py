@@ -3,7 +3,6 @@ from django.db.models.signals import pre_save
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import numpy as np
-from sperm_detect.settings import BEST_PT_PATH
 from .models import UserVideo, VideoFrames, FrameLabels
 from django.db import models
 from django.contrib.auth.models import User

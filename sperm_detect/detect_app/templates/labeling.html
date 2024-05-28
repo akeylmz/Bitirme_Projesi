@@ -8,7 +8,7 @@
     <title>Labeling</title>
     <link rel="stylesheet" type="text/css" href="{% static 'css/labeling.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-
+    
 </head>
     <body>
         <div class="labels-container">
@@ -53,12 +53,12 @@
                 <button type="submit" style="display: none;">Add Label</button>
             </form>
             {% for label in labels %}
-            <div class="label-container">
-                <div class="label-details-frame" id="label-details-frame-{{ label.id }}">
+            <div class="label-detail-container">
+                <div style="display: none;" class="label-details-frame" id="label-details-frame-{{ label.id }}">
                     
                     
                     <a style="text-decoration: none; color: white;" href="{% url 'delete_label' label_id=label.id %}">
-                        <span>Label-{{ label.id }}</span><button >DELETE</button>
+                        <span>Label-{{ label.id }}</span><button class="label-details-frame-delete-button">DELETE</button>
                     </a>
                 </div>
             </div>
@@ -67,17 +67,17 @@
         <div class="right">
             {% if frame_next_id != 0 %}
                 <div class="nextBtn">
-                    <a href="{% url 'labeling' frame_id=frame_next_id %}">
-                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                    <a href="{% url 'labeling' frame_id=frame_next_id mode=mode option_count=option_count option_class=option_class %}">
+                        <button id="id_next_frame_button" style="color: rgb(47, 65, 79);" class="back-button">
                             <i class="fa-solid fa-angles-right"></i>
                         </button>
                     </a>
                 </div>
             {% else %}
                 <div class="nextBtn">
-                    <a href="{% url 'home' %}">
+                    <a href="{% url 'video' user_video_id=video.id %}">
                         <!-- Buraya 'home' url'ini kullanarak gitmek istediğiniz sayfanın bağlantısını ekleyebilirsiniz -->
-                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                        <button id="id_next_frame_button" style="color: rgb(47, 65, 79);" class="back-button">
                             <i class="fa-solid fa-angles-right"></i>
                         </button>
                     </a>
@@ -92,8 +92,8 @@
             </div>
             {% if frame_previous_id != 0 %}
                 <div class="backBtn">
-                    <a href="{% url 'labeling' frame_id=frame_previous_id %}">
-                        <button style="color: rgb(47, 65, 79);" class="back-button">
+                    <a href="{% url 'labeling' frame_id=frame_previous_id mode=mode option_count=option_count option_class=option_class %}">
+                        <button id="id_previous_frame_button" style="color: rgb(47, 65, 79);" class="back-button">
                             <i class="fa-solid fa-angles-left"></i>
                         </button>
                     </a>
@@ -101,35 +101,146 @@
             {% endif %}
             
             <div class="updateBtn">
+                {% if mode == 'drage' %}
+                <a href="{% url 'labeling' frame_id=frame.id mode='select' option_count=option_count option_class=option_class %}">
+                    <button id="update-labels-button"  style="background-color: #7FFF00;" class="back-button">
+                {% else %} 
+                <a href="{% url 'labeling' frame_id=frame.id mode='drage' option_count=option_count option_class=option_class %}">
                     <button id="update-labels-button" style="color: rgb(47, 65, 79);" class="back-button">
+                {% endif %}
                         <i class="fa-solid fa-hand"></i>                    
                     </button>
             </div>
             <div class="drawBtn">
-                <a href="#">
+                {% if mode == 'draw' %}
+                <a href="{% url 'labeling' frame_id=frame.id mode='select' option_count=option_count option_class=option_class %}">
+                    <button id="draw-label-button" style="background-color: #7FFF00;" class="back-button">
+                    {% else %}
+                <a href="{% url 'labeling' frame_id=frame.id mode='draw' option_count=option_count option_class=option_class %}">
                     <button id="draw-label-button" style="color: rgb(47, 65, 79);" class="back-button">
+                    {% endif %}
                         <i class="fa-solid fa-pencil"></i>                    
                     </button>
                 </a>
             </div>
             <div class="draw-det">
-                <select name="draw-count" id="id_draw-count">
-                    <option value="1" selected>1</option>
-                    <option value="5">5</option>
-                    <option value="10">10</option>
-                    <option value="20">20</option>
-                    <option value="50">50</option>
-                </select>
-                <select name="draw-class" id="id_draw-class">
-                    {% for class in clases%}
-                    <option value="{{class.id}}">{{class.class_name}}</option>
-                    {%endfor%}
-                </select>
+                <div class="draw-count-container" style="border-bottom: solid 1px white;border-top: solid 1px white;">
+                    <span style="color: white; border-bottom: solid 1px white; margin: 1px;">Draw Count</span>
+                    {% for draw_count in draw_counts %}
+                        {% if draw_count == option_count %}
+                            <button id="selected-count-button" data-value="{{draw_count}}" disabled>
+                                {{draw_count}}
+                            </button>
+                        {% else %}
+                            <button onclick="redirectToURL('{% url 'labeling' frame_id=frame.id mode=mode option_count=draw_count option_class=option_class %}')">
+                                {{draw_count}}
+                            </button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="draw-class-container" style="border-bottom: solid 1px white;border-top: solid 1px white;">
+                    <span style="color: white; border-bottom: solid 1px white; margin: 1px;">Draw Class</span>
+                    {% for class in clases %}
+                        {% if class.class_id == option_class %}
+                    <button id="selected-class-button" data-value="{{class.id}}" disabled>
+                        {{class.class_name}}
+                            </button>
+                        {% else %}
+                            <button onclick="redirectToURL('{% url 'labeling' frame_id=frame.id mode=mode option_count=option_count option_class=class.class_id %}')">
+                                {{class.class_name}}
+                            </button>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                
 
             </div>
 
             
         </div>
+        <script>
+            function redirectToURL(url) {
+                window.location.href = url;
+            }
+            function getDisabledButtonValue() {
+            var selectedButton = document.getElementById('selected-count-button');
+            var count = selectedButton.getAttribute('data-value');
+            console.log(count);
+            return count;
+            
+        }
+        function getDisabledClassButtonValue() {
+            var selectedButton = document.getElementById('selected-class-button');
+            var class_id = selectedButton.getAttribute('data-value');
+            console.log(class_id);
+            return class_id;
+        }
+        document.addEventListener('keydown', function(event) {
+            // Eğer basılan tuş sağ ok ise (KeyCode: 39)
+            if (event.keyCode === 39) {
+                // Butona tıklama işlemi gerçekleştir
+                var nextFrameButton = document.getElementById('id_next_frame_button');
+                if (nextFrameButton) {
+                    nextFrameButton.click();
+                }
+            }
+            if (event.keyCode === 37) {
+                // Butona tıklama işlemi gerçekleştir
+                var backFrameButton = document.getElementById('id_previous_frame_button');
+                if (backFrameButton) {
+                    backFrameButton.click();
+                }
+            }
+            if (event.keyCode === 38) {
+                console.log('üst ok')
+                // Butona tıklama işlemi gerçekleştir
+                last_mode='{{mode}}'
+                if ( last_mode === 'select') {
+                    var drawLabelButton = document.getElementById('draw-label-button');
+                    drawLabelButton.click();
+                }
+                else {
+                    var drageLabelButton = document.getElementById('update-labels-button');
+                    drageLabelButton.click();
+                }
+                
+            }
+            if (event.keyCode === 40) {
+                console.log('alt ok')
+                // Butona tıklama işlemi gerçekleştir
+                last_mode='{{mode}}'
+                if ( last_mode === 'drage') {
+                    var drawLabelButton = document.getElementById('draw-label-button');
+                    drawLabelButton.click();
+                }
+                else {
+                    var drageLabelButton = document.getElementById('update-labels-button');
+                    drageLabelButton.click();
+                }
+                
+            }
+
+            if (event.keyCode === 46 || event.keyCode === 8) {
+            // Tüm .label-details-frame elemanlarını seç
+            var divs = document.querySelectorAll('.label-details-frame');
+            console.log("delete click")
+                // Her bir .label-details-frame elemanı için kontrol yap
+                for (var i = 0; i < divs.length; i++) {
+                    var div = divs[i];
+                    // Eğer display değeri "none" değilse
+                    if (div.style.display !== 'none') {
+                        // İlk bulunan .label-details-frame içindeki .label-details-frame-delete-button butonuna tıklama
+                        var button = div.querySelector('.label-details-frame-delete-button');
+                        if (button) {
+                            button.click();
+                            // İlk bulunan elemanda işlemi gerçekleştirdiğimiz için döngüden çık
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+        </script>
         <script>
             // Resmin yüklendiğinde çalışacak olan fonksiyon
            // Canvas elementini seç
@@ -137,13 +248,34 @@ var canvas = document.getElementById('myCanvas');
 var context = canvas.getContext('2d');
 var labels = document.querySelectorAll('.label');
 var startX, startY; // İlk tıklanan noktanın koordinatları
-var isDrawing = false; // Etiket çizimi devam ediyor mu?
-var isDragging = false;
+{% if mode == 'draw' %}
+    var isDrawing = true; // Etiket çizimi devam ediyor mu?
+    console.log('Drawing');
+{% else %}
+    var isDrawing = false; // Etiket çizimi devam ediyor mu?
+    console.log('Not Drawing');
+{% endif %}
+
+{% if mode == 'drage' %}
+    var isDragging = true; // Etiket çizimi devam ediyor mu?
+    console.log('Dragging');
+{% else %}
+    var isDragging = false;
+    console.log('Not Dragging');
+{% endif %}
+
 var dragLabel = null;
 var offsetX, offsetY;
-
+var option = {{option_count}};
+console.log(option);
 document.getElementById('draw-label-button').addEventListener('click', function() {
-    isDrawing = true;
+    if (isDrawing) {
+
+        isDrawing = false;
+    }
+    else {
+        isDrawing = true;
+    }
     // İlk tıklama noktasının koordinatlarını sıfırla
     startX = null;
     startY = null;
@@ -171,19 +303,29 @@ canvas.addEventListener('click', function(event) {
             mouseX = Math.floor(mouseX * canvas.width / rect.width);
             mouseY = Math.floor(mouseY * canvas.height / rect.height);
             console.log('2. nokta (x,y):', mouseX, mouseY);
-
+            var tmp = 0;
+            if (startX > mouseX) {
+                tmp = startX;
+                startX = mouseX;
+                mouseX = tmp;
+            }
+            if (startY > mouseY) {
+                tmp = startY;
+                startY = mouseY;
+                mouseY = tmp;
+            }
             var width = mouseX - startX;
             var height = mouseY - startY;
             context.strokeRect(startX, startY, width, height);
-            var count=document.getElementById('id_draw-count').value;
-            var labels_class=document.getElementById('id_draw-class').value;
+            var disabledButtonValue = getDisabledButtonValue();
+            var labels_class= getDisabledClassButtonValue();
             document.getElementById('x-input').value = parseFloat(startX);
             document.getElementById('y-input').value = parseFloat(startY);
             document.getElementById('w-input').value = parseFloat(width);
             document.getElementById('h-input').value = parseFloat(height);
             document.getElementById('h-input').value = parseFloat(height);
             document.getElementById('id_labels_class').value = labels_class;
-            document.getElementById('id_label_count').value = count;
+            document.getElementById('id_label_count').value = disabledButtonValue;
 
             // Formu gönder
             document.getElementById('label-form').submit();
@@ -241,7 +383,7 @@ canvas.addEventListener('click', function(event) {
             document.getElementById('delete-button-detail').innerText = 'Tıklanan etiketin ID\'si: ' + labelId;
 
             
-            context.lineWidth = 1;
+            context.lineWidth = 4;
             context.strokeStyle = 'yellow';
             context.strokeRect(labelX, labelY, labelW, labelH);
             

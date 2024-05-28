@@ -53,7 +53,7 @@
             </button>
          </a>
          {% if frame %}
-        <a href="{% url 'labeling' frame_id=frame.id %}">
+         <a href="{% url 'labeling' frame_id=frame.id mode='select' option_count=1 option_class=0 %}">
             <button class="btn btn-light m-3" value="Go Labeling">
                 Go Labeling
             </button>

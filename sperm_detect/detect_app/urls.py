@@ -3,7 +3,10 @@ from . import views
 
 urlpatterns = [
     path('home', views.home, name='home'),
-    path('labeling/<frame_id>', views.labeling, name='labeling'),
+    path('upload_frames', views.upload_frames, name='upload_frames'),
+
+    path('labeling/<int:frame_id>/<str:mode>/<int:option_count>/<int:option_class>', views.labeling, name='labeling'),
+
     path('deneme/<frame_id>', views.deneme, name='deneme'),
 
     path('video/<user_video_id>', views.video, name='video'),
