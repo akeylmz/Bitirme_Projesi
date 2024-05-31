@@ -22,6 +22,7 @@
                         <p>Y: <span class="label-y">{{ label.y|calc_y:label.h }}</span></p>
                         <p>Width: <span class="label-w">{{ label.w|calc_w }}</span></p>
                         <p>Height: <span class="label-h">{{ label.h|calc_h }}</span></p>
+                        <p>track-id: {{label.track_id}}</p>
                         <a href="{% url 'delete_label' label_id=label.id %}">
                             <button >DELETE</button>
                         </a>

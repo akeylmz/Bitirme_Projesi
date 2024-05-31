@@ -16,7 +16,7 @@
     <h1>Sperm Detector</h1>
     
 
-    <form method="POST" enctype="multipart/form-data" class="demo-form1" action="{% url 'home' %}">
+    <form method="POST" enctype="multipart/form-data" class="demo-form1" action="{% url 'upload_frames' %}">
         {% csrf_token %}
         <div class="form-row field-video_file">
             <div>
@@ -36,18 +36,14 @@
             
                     <label class="form-label" for="model">
                         Models:
-                        <button  type="button" id="add-class-btn" class="btn btn-light add-class">
-                            <i class="fa-regular fa-plus"></i>                 
-                            </button>
+                        
                     </label>
                     <select id="id_model" name="model" class="form-select" aria-label="Default select example">
                         {% for model in models %}
                         <option    value="{{model.id}}">{{model.model_name}}</option>
                         {% endfor %}
                     </select>
-                    <label class="form-label" for="id_track_mode">Track Mode</label>
-
-                    {{form.track_mode}}
+                   
                 </div>
                 
             </div>
@@ -55,15 +51,7 @@
         <button type="submit">Upload Video</button>
     </form>
 
-    <form id="ModelForm" enctype="multipart/form-data" style="display: none;" class="demo-form1" action="" method="POST">
-        {% csrf_token %}
-
-        <label class="form-label" for="id_model_name">Model name:</label>
-        <input class="form-control" type="text" name="model_name" id="id_model_name">
-        <label class="form-label" for="id_model_file">Model File:</label>
-        <input class="form-control" type="file" name="model_file" id="id_model_file">
-        <button type="submit">Add Detect Model</button>
-    </form>
+    
     
 
     <div class="videos">

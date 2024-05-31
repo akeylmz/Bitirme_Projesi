@@ -11,6 +11,8 @@ import zipfile
 from io import BytesIO
 from django.db.models import Count
 from ultralytics import YOLO
+from django.core.files.storage import FileSystemStorage
+
 #Views.
 
 def split_video_frames(user_video):
@@ -71,16 +73,91 @@ def split_video_frames(user_video):
                         h=h,
                         labels_class=class_obj  # Link to the class object
 
-                    )
-                
-
-                    
-                    
+                    )  
 
         count += 1
 
     video.release()
     return count
+
+def split_video_frames_track_mode(user_video):
+    
+    video_path = user_video.video_file.path
+    video = cv2.VideoCapture(video_path)
+    count = 1
+    
+    while True:
+        success, frame = video.read()
+
+        if not success:
+            break
+
+        # Dosya yolunu düzeltme
+        frame_path = os.path.join(user_video.user.username, str(user_video.id), 'frames', f'{count}.jpg')
+        
+        # Çerçeve dosyasını oluşturma
+        _, temp_frame = cv2.imencode('.jpg', frame)
+        frame_content = ContentFile(temp_frame.tobytes())
+
+        # VideoFrames modeline kaydetme
+        new_frame = VideoFrames(
+            video=user_video,
+        )
+        
+        # Dosya adı ve içeriğini ayarlama
+        new_frame.frame.save(frame_path, File(frame_content))
+
+        new_frame.save()
+        
+        frame_path = new_frame.frame.path
+
+        # Run batched inference on a list of images
+
+        count += 1
+
+    video.release()
+    track_mode_create_labels(user_video)
+    return count
+
+def track_mode_create_labels(user_video):
+    model = YOLO(user_video.model.model_file.path)
+    first_frame=VideoFrames.objects.filter(video=user_video).first()
+    frame_id=first_frame.id
+    detections = []
+    results = model.track(user_video.video_file.path)
+# Iterate over each result in the results
+    for r in results:
+        # Check if the result has a 'boxes' attribute
+        if hasattr(r, 'boxes') and r.boxes is not None:
+            # Iterate over each box, tracking id, and its corresponding class id
+            for box, track_id in zip(r.boxes.xywhn, r.boxes.id):
+                # Unpack the bounding box coordinates
+                new_frame=get_object_or_404(VideoFrames, id=frame_id)
+                x, y, w, h = box[0], box[1], box[2], box[3]
+                if results.index(r) < len(r.boxes.cls):
+                    class_id = int(r.boxes.cls[results.index(r)])
+                else:
+                    class_id = int(r.boxes.cls[(len(r.boxes.cls)-1)])  # Get the class ID
+                current_video_model = user_video.model
+
+                class_obj, created = Class.objects.get_or_create(
+                        class_model=current_video_model,
+                        class_id=class_id,
+                        defaults={'class_name': model.names[class_id] if class_id < len(model.names) else ""}
+                    )
+                label_new= FrameLabels.objects.create(
+                        labels_frame=new_frame,
+                        x=x,
+                        y=y,
+                        w=w,
+                        h=h,
+                        labels_class=class_obj,  # Link to the class object
+                        track_id=track_id
+                    ) 
+            frame_id+=1
+    return frame_id
+
+    
 
 def zip_directory(directory_path):
     # Geçici bellek nesnesi oluştur
@@ -235,7 +312,14 @@ def home(request):
             form.instance.user = request.user
             user_video=form.save()
             # Video dosyasını işleyerek frameleri ayır
-            split_video_frames(user_video)
+            if user_video.track_mode:
+                print("track mode run")
+                split_video_frames_track_mode(user_video)
+                
+
+            else:
+                split_video_frames(user_video)
+
             frame=VideoFrames.objects.filter(video=user_video).first()
             frame_id=frame.id
             return redirect('labeling', frame_id=frame_id)
@@ -323,29 +407,69 @@ def deneme(request, frame_id):
 
 def upload_frames(request):
     if request.method == 'POST':
-        form = UserVideoForm(request.POST, request.FILES)
-        model_form = ModelForm(request.POST, request.FILES)
+        user = request.user
+        video_name = request.POST.get('video_name')
+        images = request.FILES.getlist('imageInput')
+        model_id = request.POST.get('model')
+        model = get_object_or_404(DetectModels, id=model_id)
 
-        if form.is_valid():
-            form.instance.user = request.user
-            user_video=form.save()
-            # Video dosyasını işleyerek frameleri ayır
-            split_video_frames(user_video)
-            frame=VideoFrames.objects.filter(video=user_video).first()
-            frame_id=frame.id
-            return redirect('labeling', frame_id=frame_id)
-        elif model_form.is_valid():
-            model_form.save()
-            return redirect('home')
-    else:
-        form = UserVideoForm()
-        model_form = ModelForm()
+        new_video = UserVideo.objects.create(
+            user=user,
+            model=model,
+            video_name=video_name
+        )
+        
+        yolo_model = YOLO(new_video.model.model_file.path)
 
-    user_video=UserVideo.objects.filter(user=request.user).last()
-    user_videos=UserVideo.objects.filter(user=request.user)
-    models=DetectModels.objects.all()
-    frame=VideoFrames.objects.filter(video=user_video).first()
-    return render(request, 'upload_frames.html', {'form': form, 'frame':frame, 'user_video':user_video, 'user_videos':user_videos, 'model_form':model_form, 'models':models})
+        for count, image in enumerate(images, start=1):
+            # Dosya yolu oluştur
+            frame_path = os.path.join('media', new_video.user.username, str(new_video.id), 'frames', f'{count}.jpg')
+            frame_up_path = os.path.join( new_video.user.username, str(new_video.id), 'frames', f'{count}.jpg')
+
+            # FileSystemStorage kullanarak dosyayı belirli bir yola kaydet
+            fs = FileSystemStorage(location=os.path.join('media', new_video.user.username, str(new_video.id), 'frames'))
+            filename = fs.save(f'{count}.jpg', image)
+            
+            # Kaydedilen dosyanın tam yolu
+            file_path = fs.path(filename)
+            print(frame_up_path)
+            # VideoFrames objesi oluştur ve kaydet
+            new_frame = VideoFrames.objects.create(video=new_video, frame=frame_up_path)
+
+            results = yolo_model.predict(frame_path)
+
+            for r in results:
+                if r.boxes.xywhn.tolist() is not None:
+                    for c in r.boxes.xywhn.tolist(): # To get the coordinates.
+                        x, y, w, h = c[0], c[1], c[2], c[3] # x, y are the center coordinates.
+                        class_id = int(r.boxes.cls[results.index(r)])  # Get the class ID
+                
+                        # Get the current video model
+                        current_video_model = new_video.model
+                        
+                        # Check if the class with the given class_id exists for the current model
+                        class_obj, created = Class.objects.get_or_create(
+                            class_model=current_video_model,
+                            class_id=class_id,
+                            defaults={'class_name': yolo_model.names[class_id] if class_id < len(yolo_model.names) else ""}
+                        )
+                        #label_file.write(f'{x} {y} {w} {h}\n')  # Etiket bilgilerini dosyaya yaz
+                        label_new = FrameLabels.objects.create(
+                            labels_frame=new_frame,
+                            x=x,
+                            y=y,
+                            w=w,
+                            h=h,
+                            labels_class=class_obj  # Link to the class object
+                        )
+
+        return redirect('upload_frames')
+
+    user_video = UserVideo.objects.filter(user=request.user).last()
+    user_videos = UserVideo.objects.filter(user=request.user)
+    models = DetectModels.objects.all()
+    frame = VideoFrames.objects.filter(video=user_video).first()
+    return render(request, 'upload_frames.html', { 'frame': frame, 'user_video': user_video, 'user_videos': user_videos, 'models': models })
 #  add- Delete.
 
 def delete_label(request, label_id):
