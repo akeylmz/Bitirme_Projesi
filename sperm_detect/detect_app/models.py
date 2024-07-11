@@ -18,8 +18,6 @@ class UserVideo(models.Model):
     video_name = models.CharField(max_length=128,blank=True,null=True)
     track_mode = models.BooleanField(default=False)
 
-
-
 class VideoFrames(models.Model):
     video = models.ForeignKey(UserVideo, on_delete=models.CASCADE, related_name='video_frames')
     frame = models.FileField()

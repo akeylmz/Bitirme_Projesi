@@ -22,10 +22,28 @@
                         <p>Y: <span class="label-y">{{ label.y|calc_y:label.h }}</span></p>
                         <p>Width: <span class="label-w">{{ label.w|calc_w }}</span></p>
                         <p>Height: <span class="label-h">{{ label.h|calc_h }}</span></p>
+                        {% if video.track_mode %}
                         <p>track-id: {{label.track_id}}</p>
+                        {% endif %}
                         <a href="{% url 'delete_label' label_id=label.id %}">
                             <button >DELETE</button>
                         </a>
+                        {% if video.track_mode %}
+                            {% if label.track_id %}
+                                <a href="{% url 'delete_track_label' label_id=label.id %}">
+                                    <button >DELETE TRACK</button>
+                                </a>
+                            {% else %}
+                                <form action="{% url 'add_track_id' label_id=label.id %}" method="post">
+                                    {% csrf_token %}
+
+                                    <input name="track_id_input" type="number">
+                                    <button type="submit" >Add Track ID</button>
+
+                                </form>
+                            {% endif %}
+
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -53,6 +71,17 @@
 
                 <button type="submit" style="display: none;">Add Label</button>
             </form>
+
+            <form style="display: none;" id="update-form" action="{% url 'update_label' %}" method="post">
+                {% csrf_token %}
+        
+                <input id="x-up-input" name="x" step="0.000000000000001" type="number">
+                <input id="y-up-input" name="y" step="0.000000000000001" type="number">
+                <input id="label_id-up-input" name="label_id" type="number">
+
+                <button type="submit" style="display: none;">Update Label</button>
+            </form>
+            
             {% for label in labels %}
             <div class="label-detail-container">
                 <div style="display: none;" class="label-details-frame" id="label-details-frame-{{ label.id }}">
@@ -61,6 +90,25 @@
                     <a style="text-decoration: none; color: white;" href="{% url 'delete_label' label_id=label.id %}">
                         <span>Label-{{ label.id }}</span><button class="label-details-frame-delete-button">DELETE</button>
                     </a>
+                    {% if video.track_mode %}
+                        
+                        {% endif %}
+
+
+                        {% if video.track_mode %}
+                            {% if label.track_id %}
+                            <a style="text-decoration: none; color: white;" href="{% url 'delete_track_label' label_id=label.id %}">
+                                <span>Track id: {{label.track_id}}</span> <button >DELETE TRACK</button>
+                            </a>
+                            {% else %}
+                            <form action="{% url 'add_track_id' label_id=label.id %}" method="post">
+                                {% csrf_token %}
+                                <input name="track_id_input" type="number">
+                                <button type="submit" >Add Track ID</button>
+                            </form>
+                        {% endif %}
+
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
@@ -242,36 +290,69 @@
             }
         });
         </script>
+
         <script>
-            // Resmin yüklendiğinde çalışacak olan fonksiyon
+
            // Canvas elementini seç
 var canvas = document.getElementById('myCanvas');
 var context = canvas.getContext('2d');
 var labels = document.querySelectorAll('.label');
 var startX, startY; // İlk tıklanan noktanın koordinatları
+var colors = [
+    "#FF5733", // Kırmızı
+    "#33FF57", // Yeşil
+    "#3357FF", // Mavi
+    "#8E44AD", // Mor
+    "#E74C3C", // Koyu Kırmızı
+    "#3498DB", // Açık Mavi
+    "#1ABC9C", // Turkuaz
+    "#2ECC71", // Nane Yeşili
+    "#9B59B6", // Orkide
+    "#34495E", // Koyu Gri
+    "#16A085", // Koyu Turkuaz
+    "#27AE60", // Orman Yeşili
+    "#2980B9", // Çelik Mavisi
+    "#8E44AD", // Mor
+    "#2C3E50", // Koyu Deniz Mavisi
+    "#F39C12", // Portakal
+    "#D35400", // Turuncu
+    "#C0392B", // Kiraz
+    "#BDC3C7", // Gümüş
+    "#7F8C8D", // Gri
+    "#2C3E50", // Koyu Deniz Mavisi
+    "#DFFF00", // Sarı-Yeşil
+    "#FFBF00", // Amber
+    "#FF7F50", // Mercan
+    "#DE3163", // Kiraz Pembesi
+    "#9FE2BF", // Deniz Köpüğü
+    "#40E0D0", // Turkuaz
+    "#6495ED", // Mısır Çiçeği Mavisi
+    "#CCCCFF", // Açık Mor
+    "#FFB6C1", // Açık Pembe
+];
+
 {% if mode == 'draw' %}
     var isDrawing = true; // Etiket çizimi devam ediyor mu?
-    console.log('Drawing');
+   
 {% else %}
     var isDrawing = false; // Etiket çizimi devam ediyor mu?
-    console.log('Not Drawing');
+    
 {% endif %}
 
 {% if mode == 'drage' %}
     var isDragging = true; // Etiket çizimi devam ediyor mu?
-    console.log('Dragging');
+    
 {% else %}
     var isDragging = false;
-    console.log('Not Dragging');
+    
 {% endif %}
 
 var dragLabel = null;
 var offsetX, offsetY;
 var option = {{option_count}};
-console.log(option);
+
 document.getElementById('draw-label-button').addEventListener('click', function() {
     if (isDrawing) {
-
         isDrawing = false;
     }
     else {
@@ -280,6 +361,14 @@ document.getElementById('draw-label-button').addEventListener('click', function(
     // İlk tıklama noktasının koordinatlarını sıfırla
     startX = null;
     startY = null;
+});
+
+document.getElementById('update-labels-button').addEventListener('click', function() {
+    labels.forEach(function(label) {
+        label.addEventListener('mousedown', startDrag);
+        label.addEventListener('mousemove', drag);
+        label.addEventListener('mouseup', endDrag);
+    });
 });
 
 canvas.addEventListener('click', function(event) {
@@ -298,7 +387,7 @@ canvas.addEventListener('click', function(event) {
             startY = Math.floor(startY * canvas.height / rect.height);
             console.log('İlk start (x,y):', startX, startY);
 
-        } else {
+        } else if (isDragging==false) {
             // İkinci noktayı belirle ve etiketi çiz
 
             mouseX = Math.floor(mouseX * canvas.width / rect.width);
@@ -324,7 +413,7 @@ canvas.addEventListener('click', function(event) {
             document.getElementById('y-input').value = parseFloat(startY);
             document.getElementById('w-input').value = parseFloat(width);
             document.getElementById('h-input').value = parseFloat(height);
-            document.getElementById('h-input').value = parseFloat(height);
+            
             document.getElementById('id_labels_class').value = labels_class;
             document.getElementById('id_label_count').value = disabledButtonValue;
 
@@ -332,35 +421,14 @@ canvas.addEventListener('click', function(event) {
             document.getElementById('label-form').submit();
 
             // Etiket çizimini bitir
-            isDrawing = false;
-            // Etiket çizimini bitir
-            isDrawing = false;
+            
+            
 
             // Etiketin koordinatlarını ve boyutunu yazdır
             console.log('Genişlik:', width);
             console.log('Yükseklik:', height);
         }
-    }
-});
-
-// Mouse hareketlerini izlemek için olay dinleyici ekle
-canvas.addEventListener('mousemove', function(event) {
-    // Fare konumunu al
-    var rect = canvas.getBoundingClientRect();
-    var mouseX = event.clientX - rect.left;
-    var mouseY = event.clientY - rect.top;
-    
-    // Fare konumunu kanvasın koordinatlarına dönüştür
-    var canvasX = Math.floor(mouseX * canvas.width / rect.width);
-    var canvasY = Math.floor(mouseY * canvas.height / rect.height);
-    
-    // Fare konumunu ekrana yazdır
-    document.getElementById('mouseCoordinates').innerText = 'X: ' + canvasX + ', Y: ' + canvasY;
-});
-
-// Canvas üzerine tıklandığında olay dinleyici ekle
-canvas.addEventListener('click', function(event) {
-    // Tıklanan noktanın koordinatlarını al
+    } else {
     var rect = canvas.getBoundingClientRect();
     var mouseX = event.clientX - rect.left;
     var mouseY = event.clientY - rect.top;
@@ -382,12 +450,43 @@ canvas.addEventListener('click', function(event) {
             console.log('Tıklanan etiketin ID\'si:', labelId);
             // veya bir HTML öğesine yazdırabilirsiniz
             document.getElementById('delete-button-detail').innerText = 'Tıklanan etiketin ID\'si: ' + labelId;
+            context.clearRect(0, 0, canvas.width, canvas.height);
+
+            var image = new Image();
+            image.onload = function() {
+            canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
+            canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
+            context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
+
+                    // Kare çerçeveleri çiz
+        
+        {% for label in labels %}
+            x_c={{ label.x }} - {{ label.w }}/2
+            x=x_c*image.width
+            y_c={{ label.y }} - {{ label.h }}/2
+            y=y_c*image.height
+            w={{ label.w }}*image.width
+            h={{ label.h }}*image.height
+            if (x==labelX) {
+                context.lineWidth = 4;
+                context.strokeStyle = 'yellow';
+                context.strokeRect(x, y, w, h);
+            }  else {
+            context.lineWidth = 2;
+            var class_id = {{label.labels_class.class_id}}
+            context.strokeStyle = colors[class_id];
+            context.strokeRect(x, y, w, h); 
+            }      
+                               
+        {% endfor %}
+    };
+    image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
+
+
+
 
             
-            context.lineWidth = 4;
-            context.strokeStyle = 'yellow';
-            context.strokeRect(labelX, labelY, labelW, labelH);
-            
+        
             const allDetailsFrames = document.querySelectorAll('.label-details-frame');
             allDetailsFrames.forEach(frame => {
                 if (frame.id !== labelId) {
@@ -401,111 +500,110 @@ canvas.addEventListener('click', function(event) {
            
         }
     });
+    }
 });
 
-          
-document.getElementById('update-labels-button').addEventListener('click', function() {
-    labels.forEach(function(label) {
-        label.addEventListener('mousedown', startDrag);
-        label.addEventListener('mousemove', drag);
-        label.addEventListener('mouseup', endDrag);
-    });
-});
-
-function startDrag(event) {
-    isDragging = true;
-    dragLabel = event.target;
+// Mouse hareketlerini izlemek için olay dinleyici ekle
+canvas.addEventListener('mousemove', function(event) {
+    // Fare konumunu al
     var rect = canvas.getBoundingClientRect();
     var mouseX = event.clientX - rect.left;
     var mouseY = event.clientY - rect.top;
+    
+    // Fare konumunu kanvasın koordinatlarına dönüştür
+    var canvasX = Math.floor(mouseX * canvas.width / rect.width);
+    var canvasY = Math.floor(mouseY * canvas.height / rect.height);
+    
+    // Fare konumunu ekrana yazdır
+    document.getElementById('mouseCoordinates').innerText = 'X: ' + canvasX + ', Y: ' + canvasY;
+});
 
-    offsetX = mouseX - parseFloat(dragLabel.dataset.x);
-    offsetY = mouseY - parseFloat(dragLabel.dataset.y);
-}
+if (isDragging){
+    let labelId = 0;
+    let downCoords = { x: 0, y: 0 };
+    let clabelX =0
+    let clabelY =0
 
-function drag(event) {
-    if (isDragging && dragLabel) {
-        var rect = canvas.getBoundingClientRect();
-        var mouseX = event.clientX - rect.left;
-        var mouseY = event.clientY - rect.top;
-
-        var newX = mouseX - offsetX;
-        var newY = mouseY - offsetY;
-
-        dragLabel.dataset.x = newX;
-        dragLabel.dataset.y = newY;
         
-        drawLabels();
-    }
-}
+    canvas.addEventListener('mousedown', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = event.clientX - rect.left;
+        const mouseY = event.clientY - rect.top;
+        var canvasdX = Math.floor(mouseX * canvas.width / rect.width);
+        var canvasdY = Math.floor(mouseY * canvas.height / rect.height);
+        downCoords.x = canvasdX;
+        downCoords.y = canvasdY;
+        // Her bir label için kontrol et
+        labels.forEach(function(label) {
+            // Label'ın verilerini al
+            labelX = parseFloat(label.dataset.x);
+            labelY = parseFloat(label.dataset.y);
+            var labelW = parseFloat(label.dataset.w);
+            var labelH = parseFloat(label.dataset.h);
+            
+            if (canvasdX >= labelX && canvasdX <= labelX + labelW && canvasdY >= labelY && canvasdY <= labelY + labelH) {
+            // Etiketin idsini yazdır
+            labelId = label.dataset.id;
+            clabelX = labelX
+            clabelY = labelY
+            }    
+        })    
+    });
 
-function endDrag(event) {
-    if (isDragging) {
-        isDragging = false;
-        updateLabel(dragLabel);
-    }
-}
+    canvas.addEventListener('mouseup', function(event) {
+        const rect = canvas.getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        var canvasuX = Math.floor(x * canvas.width / rect.width);
+        var canvasuY = Math.floor(y * canvas.height / rect.height);
 
-function updateLabel(label) {
-    var labelId = label.dataset.id;
-    var x = parseFloat(label.dataset.x);
-    var y = parseFloat(label.dataset.y);
-    var w = parseFloat(label.dataset.w);
-    var h = parseFloat(label.dataset.h);
+        var newx=clabelX+canvasuX-downCoords.x
+        var newy=clabelY+canvasuY-downCoords.y
 
-    var formData = new FormData();
-    formData.append('x', x);
-    formData.append('y', y);
-    formData.append('w', w);
-    formData.append('h', h);
+        console.log(`Label-x: ${clabelX}, Label-y: ${clabelY}`);
 
-    fetch(`/update_label/${labelId}/`, {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': '{{ csrf_token }}'
-        }
-    }).then(response => {
-        if (response.ok) {
-            console.log('Label updated successfully');
-        } else {
-            console.error('Error updating label');
-        }
+        console.log(`Mouse Up at (${canvasuX}, ${canvasuY})`);
+        console.log(`Label: (${labelId})`);
+        console.log(`New Label-x (${newx})`);
+
+        document.getElementById('x-up-input').value = parseFloat(newx);
+        document.getElementById('y-up-input').value = parseFloat(newy);
+        document.getElementById('label_id-up-input').value = labelId;
+
+            // Formu gönder
+        document.getElementById('update-form').submit();
+
     });
 }
 
-            function drawLabels() {
-        
+function drawLabels() {      
                 // Resmi çiz
-                var image = new Image();
-                image.onload = function() {
-                    canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
-                    canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
-                    context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
+    var image = new Image();
+    image.onload = function() {
+        canvas.width = image.width; // Canvas genişliğini resim genişliğiyle ayarla
+        canvas.height = image.height; // Canvas yüksekliğini resim yüksekliğiyle ayarla
+        context.drawImage(image, 0, 0, canvas.width, canvas.height); // Resmi çiz
 
                     // Kare çerçeveleri çiz
-                    context.lineWidth = 1;
-                    context.strokeStyle = 'red';
-                    {% for label in labels %}
-                        x_c={{ label.x }} - {{ label.w }}/2
-                        x=x_c*image.width
-                        y_c={{ label.y }} - {{ label.h }}/2
-                        y=y_c*image.height
-                        w={{ label.w }}*image.width
-                        h={{ label.h }}*image.height
-                        
-                        //context.strokeRect({{ label.x }}, {{ label.y }}, {{ label.w }}, {{ label.h }});
-                        //context.strokeRect({{ label.x }}*image.width*0.99, {{ label.y }}*image.height*0.97, {{ label.w }}*image.width, {{ label.h }}*image.height);
-                        context.strokeRect(x, y, w, h);                    
-                        //context.strokeRect({{ label.x }}*640, {{ label.y }}*640, {{ label.w }}*640, {{ label.h }}*640);
-
-                    {% endfor %}
-                };
-                image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
-            }
+        context.lineWidth = 2;
+        
+        {% for label in labels %}
+            x_c={{ label.x }} - {{ label.w }}/2
+            x=x_c*image.width
+            y_c={{ label.y }} - {{ label.h }}/2
+            y=y_c*image.height
+            w={{ label.w }}*image.width
+            h={{ label.h }}*image.height   
+            var class_id = {{label.labels_class.class_id}}
+            context.strokeStyle = colors[class_id];
+            context.strokeRect(x, y, w, h);                    
+        {% endfor %}
+    };
+    image.src = '{{ frame.frame.url }}'; // Resim dosyasının yolu
+}
+window.onload = drawLabels;
 
             // Sayfa yüklendiğinde resmi ve kare çerçeveleri çiz
-            window.onload = drawLabels;
         </script>
         <script>
 

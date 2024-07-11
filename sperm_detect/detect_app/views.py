@@ -157,8 +157,6 @@ def track_mode_create_labels(user_video):
             frame_id+=1
     return frame_id
 
-    
-
 def zip_directory(directory_path):
     # Geçici bellek nesnesi oluştur
     zip_buffer = BytesIO()
@@ -187,17 +185,21 @@ def txt_frames(request, user_video_id):
             frame_name = os.path.splitext(os.path.basename(frame_path))[0]
             
             labels = frame.frame_labels.all()
-            first_label = labels.first()
-            if first_label:
-                class_name =  first_label.labels_class.class_name
-            else:
-                class_name = "none"
-            labels_dir = os.path.join('media', frame.video.user.username, str(frame.video.id), 'labels', class_name)
+            
+            labels_dir = os.path.join('media', frame.video.user.username, str(frame.video.id), 'labels')
             os.makedirs(labels_dir, exist_ok=True)  # Klasörü oluştur (varsa hata vermez)
             label_file_path = os.path.join(labels_dir, frame_name + '.txt')
             with open(label_file_path, 'w') as label_file:
                 for label in labels:
-                    label_file.write(f'{label.labels_class.class_id} {label.x} {label.y} {label.w} {label.h}\n')  # Etiket bilgilerini dosyaya yaz
+                    if user_video.track_mode:
+                        if label.track_id:
+                            labesl_track_id=label.track_id
+                        else:
+                            labesl_track_id=' '
+                        label_file.write(f'{labesl_track_id} {label.labels_class.class_id} {label.x} {label.y} {label.w} {label.h}\n')  # Etiket bilgilerini dosyaya yaz
+                    else:
+                        label_file.write(f'{label.labels_class.class_id} {label.x} {label.y} {label.w} {label.h}\n')  # Etiket bilgilerini dosyaya yaz
+
         if not os.path.exists(directory_path):
             return JsonResponse({'error': 'Directory does not exist'}, status=404)
         
@@ -277,15 +279,27 @@ def user_video_frames_labels(request, user_video_id):
             labels = frame.frame_labels.all()
             for label in labels:
                 # Annotation bilgileri
-                annotation_info = {
-                    "id": annotation_id,
-                    "image_id": frame.id,
-                    "category_id": 1,  # 'sperm' kategorisi için id
-                    "bbox": [label.x, label.y, label.w, label.h],
-                    "area": label.w * label.h,
-                    "segmentation": [],
-                    "iscrowd": 0
-                }
+                if user_video.track_mode:
+                    annotation_info = {
+                        "id": annotation_id,
+                        "image_id": frame.id,
+                        "category_id": label.labels_class.class_id,  # 'sperm' kategorisi için id
+                        "track_id": label.track_id,
+                        "bbox": [label.x, label.y, label.w, label.h],
+                        "area": label.w * label.h,
+                        "segmentation": [],
+                        "iscrowd": 0
+                    }
+                else:
+                    annotation_info = {
+                        "id": annotation_id,
+                        "image_id": frame.id,
+                        "category_id": label.labels_class.class_id,  # 'sperm' kategorisi için id
+                        "bbox": [label.x, label.y, label.w, label.h],
+                        "area": label.w * label.h,
+                        "segmentation": [],
+                        "iscrowd": 0
+                    }
                 coco_data["annotations"].append(annotation_info)
                 annotation_id += 1
 
@@ -315,14 +329,12 @@ def home(request):
             if user_video.track_mode:
                 print("track mode run")
                 split_video_frames_track_mode(user_video)
-                
-
             else:
                 split_video_frames(user_video)
 
             frame=VideoFrames.objects.filter(video=user_video).first()
             frame_id=frame.id
-            return redirect('labeling', frame_id=frame_id)
+            return redirect('labeling', frame_id=frame_id, mode='select', option_count=1, option_class=0)
         elif model_form.is_valid():
             model_form.save()
             return redirect('home')
@@ -366,6 +378,8 @@ def labeling(request, frame_id, mode, option_count, option_class):
     frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
     if frame_next is None:
         frame_next_id = 0
+    elif frame_next.video != user_video:
+        frame_next_id = 0
 
     frame_previous_id=int(frame_id)-1
 
@@ -387,23 +401,6 @@ def labeling(request, frame_id, mode, option_count, option_class):
                     'draw_counts':draw_counts
                     })
 
-def deneme(request, frame_id):
-    frame= VideoFrames.objects.filter(id=frame_id).first()
-    user_video = get_object_or_404(UserVideo,id=frame.video.id)
-    frame_last = user_video.video_frames.last()
-    frame_first = user_video.video_frames.first()
-
-    frame_next_id=int(frame_id)+1
-    frame_next=VideoFrames.objects.filter(id=frame_next_id).first()
-    if frame_next is None:
-        frame_next_id = 0
-
-    frame_previous_id=int(frame_id)-1
-
-    if frame_previous_id <frame_first.id:
-        frame_previous_id = 0
-    labels= FrameLabels.objects.filter(labels_frame=frame_id)
-    return render(request, 'deneme.html', {'video':user_video,'frame': frame,'frame_next_id': frame_next_id, 'labels':labels,'frame_last':frame_last, 'frame_previous_id':frame_previous_id})
 
 def upload_frames(request):
     if request.method == 'POST':
@@ -477,6 +474,20 @@ def delete_label(request, label_id):
     label.delete()
     return redirect(request.META.get('HTTP_REFERER'))
 
+def delete_track_label(request, label_id):
+    label=get_object_or_404(FrameLabels, id=label_id)
+    label_track_id=label.track_id
+    frame=label.labels_frame
+    video=get_object_or_404(UserVideo, id=frame.video.id)
+    video_frames = video.video_frames.all()
+
+    for x in video_frames:
+        labels=x.frame_labels.all()
+        for y in labels:
+            if y.track_id == label_track_id:
+                y.delete()
+    return redirect(request.META.get('HTTP_REFERER'))
+
 def delete_video(request, video_id):
     video=get_object_or_404(UserVideo, id=video_id)
     video.delete()
@@ -517,27 +528,36 @@ def add_label(request, frame_id):
             )
     return redirect(request.META.get('HTTP_REFERER'))
 
+
+def add_track_id(request, label_id):
+    if request.method == 'POST':
+
+        track_id = float(request.POST.get('track_id_input'))
+        label=get_object_or_404(FrameLabels, id=label_id)
+        label.track_id=track_id
+        label.save()
+    return redirect(request.META.get('HTTP_REFERER'))
+
 from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
-def update_label(request, label_id):
-    label=FrameLabels.objects.filter(id=label_id)
-    frame=label.labels_frame
+def update_label(request):
     if request.method == 'POST':
         x = float(request.POST.get('x'))
         y = float(request.POST.get('y'))
-        w = float(request.POST.get('w'))
-        h = float(request.POST.get('h'))
+        label_id = request.POST.get('label_id')
+        print(label_id)
+        label=get_object_or_404(FrameLabels,id=label_id)
+        w = label.w
+        h = label.h
         x=x/1920
-        w=w/1920
+        
         y=y/1080
-        h=h/1080
+        
         y=y+h/2
         x=x+w/2
         label.x=x
         label.y=y
-        label.w=w
-        label.h=h
         label.save()
     return redirect(request.META.get('HTTP_REFERER'))
 
